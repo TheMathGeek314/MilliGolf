@@ -28,7 +28,7 @@ namespace MilliGolf {
         public static PlayMakerFSM areaTitleRef;
 
         new public string GetName() => "MilliGolf";
-        public override string GetVersion() => "1.0.1.0";
+        public override string GetVersion() => "1.0.1.1";
 
         public static LocalGolfSettings golfData { get; set; } = new();
         public void OnLoadLocal(LocalGolfSettings g) => golfData = g;

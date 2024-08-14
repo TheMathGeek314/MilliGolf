@@ -116,7 +116,10 @@ namespace MilliGolf {
                 }
             }
             else if(self.FsmName == "Door Control") {
-                self.GetState("In Range").InsertAction(new renameEnterLabel(self, "ENTER"), 1);
+                try {
+                    self.GetState("In Range").InsertAction(new renameEnterLabel(self, "ENTER"), 1);
+                }
+                catch(Exception) { }
             }
             else if(self.gameObject.name == "RestBench (1)" && self.FsmName == "Bench Control" && self.gameObject.scene.name == "GG_Workshop") {
                 self.FsmVariables.GetFsmBool("Set Respawn").Value = false;

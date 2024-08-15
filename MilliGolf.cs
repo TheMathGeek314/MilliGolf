@@ -28,7 +28,7 @@ namespace MilliGolf {
         public static PlayMakerFSM areaTitleRef;
 
         new public string GetName() => "MilliGolf";
-        public override string GetVersion() => "1.0.1.1";
+        public override string GetVersion() => "1.0.2.0";
 
         public static LocalGolfSettings golfData { get; set; } = new();
         public void OnLoadLocal(LocalGolfSettings g) => golfData = g;
@@ -573,7 +573,7 @@ namespace MilliGolf {
                         uuiImage.sprite = bsu.stateSprites[4];
                         image.transform.localScale = new Vector3(1, 1, 1);
                     }
-                    else if(total <= 285) {
+                    else if(total <= 300) {
                         uuiImage.sprite = bsu.stateSprites[3];
                         image.transform.localScale = new Vector3(1, 1.3f, 1);
                     }

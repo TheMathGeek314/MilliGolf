@@ -18,6 +18,7 @@ namespace MilliGolf {
         public static bool doCustomLoad = false;
         public static bool isInGolfRoom = false;
         public static bool wasInCustomRoom = false;
+        public static bool hasLoggedProgression = false;
         public static bool ballCam = false;
         public static string tinkDamager;
         static Dictionary<string, Dictionary<string, GameObject>> prefabs;
@@ -28,7 +29,7 @@ namespace MilliGolf {
         public static PlayMakerFSM areaTitleRef;
 
         new public string GetName() => "MilliGolf";
-        public override string GetVersion() => "1.0.2.0";
+        public override string GetVersion() => "1.0.2.1";
 
         public static LocalGolfSettings golfData { get; set; } = new();
         public void OnLoadLocal(LocalGolfSettings g) => golfData = g;
@@ -74,6 +75,7 @@ namespace MilliGolf {
 
         private void onNewGameSetup() {
             startGameSetup();
+            progressionLog.wipeProgression();
         }
 
         private void onSaveLoadSetup(int obj) {
@@ -87,6 +89,7 @@ namespace MilliGolf {
 
         private void startGameSetup() {
             addDialogue();
+            hasLoggedProgression = false;
         }
 
         private void editFSM(On.PlayMakerFSM.orig_OnEnable orig, PlayMakerFSM self) {
@@ -703,6 +706,7 @@ namespace MilliGolf {
 
         public static void logProgression() {
             pd = PlayerData.instance;
+            
             canDash = pd.canDash;
             crossroadsInfected = pd.crossroadsInfected;
             hasAcidArmour = pd.hasAcidArmour;
@@ -717,6 +721,8 @@ namespace MilliGolf {
             hasSuperDash = pd.hasSuperDash;
             hasUpwardSlash = pd.hasUpwardSlash;
             hasWalljump = pd.hasWalljump;
+
+            MilliGolf.hasLoggedProgression = true;
         }
 
         public static void overrideProgression() {
@@ -738,21 +744,41 @@ namespace MilliGolf {
         }
 
         public static void restoreProgression() {
+            if(MilliGolf.hasLoggedProgression) {
+                pd = PlayerData.instance;
+                pd.canDash = canDash;
+                pd.crossroadsInfected = crossroadsInfected;
+                pd.hasAcidArmour = hasAcidArmour;
+                pd.hasCyclone = hasCyclone;
+                pd.hasDashSlash = hasDashSlash;
+                pd.hasDoubleJump = hasDoubleJump;
+                pd.hasDreamGate = hasDreamGate;
+                pd.hasDreamNail = hasDreamNail;
+                pd.hasLantern = hasLantern;
+                pd.hasMap = hasMap;
+                pd.hasNailArt = hasNailArt;
+                pd.hasSuperDash = hasSuperDash;
+                pd.hasUpwardSlash = hasUpwardSlash;
+                pd.hasWalljump = hasWalljump;
+            }
+        }
+
+        public static void wipeProgression() {
             pd = PlayerData.instance;
-            pd.canDash = canDash;
-            pd.crossroadsInfected = crossroadsInfected;
-            pd.hasAcidArmour = hasAcidArmour;
-            pd.hasCyclone = hasCyclone;
-            pd.hasDashSlash = hasDashSlash;
-            pd.hasDoubleJump = hasDoubleJump;
-            pd.hasDreamGate = hasDreamGate;
-            pd.hasDreamNail = hasDreamNail;
-            pd.hasLantern = hasLantern;
-            pd.hasMap = hasMap;
-            pd.hasNailArt = hasNailArt;
-            pd.hasSuperDash = hasSuperDash;
-            pd.hasUpwardSlash = hasUpwardSlash;
-            pd.hasWalljump = hasWalljump;
+            pd.canDash = canDash = false;
+            pd.crossroadsInfected = crossroadsInfected = false;
+            pd.hasAcidArmour = hasAcidArmour = false;
+            pd.hasCyclone = hasCyclone = false;
+            pd.hasDashSlash = hasDashSlash = false;
+            pd.hasDoubleJump = hasDoubleJump = false;
+            pd.hasDreamGate = hasDreamGate = false;
+            pd.hasDreamNail = hasDreamNail = false;
+            pd.hasLantern = hasLantern = false;
+            pd.hasMap = hasMap = false;
+            pd.hasNailArt = hasNailArt = false;
+            pd.hasSuperDash = hasSuperDash = false;
+            pd.hasUpwardSlash = hasUpwardSlash = false;
+            pd.hasWalljump = hasWalljump = false;
         }
     }
 

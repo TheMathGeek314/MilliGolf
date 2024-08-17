@@ -29,7 +29,7 @@ namespace MilliGolf {
         public static PlayMakerFSM areaTitleRef;
 
         new public string GetName() => "MilliGolf";
-        public override string GetVersion() => "1.0.2.1";
+        public override string GetVersion() => "1.0.2.2";
 
         public static LocalGolfSettings golfData { get; set; } = new();
         public void OnLoadLocal(LocalGolfSettings g) => golfData = g;
@@ -349,6 +349,7 @@ namespace MilliGolf {
             golfScene waterways = new("Royal Waterways", "Waterways_02", "top1", "bot2");
             waterways.doorColor = new Color(0.1887f, 0.4961f, 0.52f, 0.466f);
             waterways.millibelleSpawn = new Vector3(69, 28.8f, 0.006f);
+            waterways.objectsToDisable.Add("RestBench");
             waterways.flagData = ("flagSignSE", 216, 3.81f);
 
             golfScene cliffs = new("Howling Cliffs", "Cliffs_01", "right1", "right3");
@@ -574,16 +575,14 @@ namespace MilliGolf {
                     }
                     else if(total <= 250) {
                         uuiImage.sprite = bsu.stateSprites[4];
-                        image.transform.localScale = new Vector3(1, 1, 1);
                     }
                     else if(total <= 300) {
                         uuiImage.sprite = bsu.stateSprites[3];
-                        image.transform.localScale = new Vector3(1, 1.3f, 1);
                     }
                     else {
                         uuiImage.sprite = bsu.stateSprites[2];
-                    image.transform.localScale = new Vector3(1, 1, 1);
                     }
+                    uuiImage.SetNativeSize();
                 }
                 else {
                     image.SetActive(false);
@@ -721,7 +720,7 @@ namespace MilliGolf {
             hasSuperDash = pd.hasSuperDash;
             hasUpwardSlash = pd.hasUpwardSlash;
             hasWalljump = pd.hasWalljump;
-
+            
             MilliGolf.hasLoggedProgression = true;
         }
 

@@ -29,7 +29,7 @@ namespace MilliGolf {
         public static PlayMakerFSM areaTitleRef;
 
         new public string GetName() => "MilliGolf";
-        public override string GetVersion() => "1.0.2.2";
+        public override string GetVersion() => "1.0.2.3";
 
         public static LocalGolfSettings golfData { get; set; } = new();
         public void OnLoadLocal(LocalGolfSettings g) => golfData = g;
@@ -690,6 +690,7 @@ namespace MilliGolf {
         static PlayerData pd;
         static bool canDash;
         static bool crossroadsInfected;
+        static bool defeatedMantisLords;
         static bool hasAcidArmour;
         static bool hasCyclone;
         static bool hasDashSlash;
@@ -708,6 +709,7 @@ namespace MilliGolf {
             
             canDash = pd.canDash;
             crossroadsInfected = pd.crossroadsInfected;
+            defeatedMantisLords = pd.defeatedMantisLords;
             hasAcidArmour = pd.hasAcidArmour;
             hasCyclone = pd.hasCyclone;
             hasDashSlash = pd.hasDashSlash;
@@ -728,6 +730,7 @@ namespace MilliGolf {
             pd = PlayerData.instance;
             pd.canDash = true;
             pd.crossroadsInfected = false;
+            pd.defeatedMantisLords = false;
             pd.hasAcidArmour = true;
             pd.hasCyclone = true;
             pd.hasDashSlash = true;
@@ -747,6 +750,7 @@ namespace MilliGolf {
                 pd = PlayerData.instance;
                 pd.canDash = canDash;
                 pd.crossroadsInfected = crossroadsInfected;
+                pd.defeatedMantisLords = defeatedMantisLords;
                 pd.hasAcidArmour = hasAcidArmour;
                 pd.hasCyclone = hasCyclone;
                 pd.hasDashSlash = hasDashSlash;
@@ -766,6 +770,7 @@ namespace MilliGolf {
             pd = PlayerData.instance;
             pd.canDash = canDash = false;
             pd.crossroadsInfected = crossroadsInfected = false;
+            pd.defeatedMantisLords = defeatedMantisLords = false;
             pd.hasAcidArmour = hasAcidArmour = false;
             pd.hasCyclone = hasCyclone = false;
             pd.hasDashSlash = hasDashSlash = false;

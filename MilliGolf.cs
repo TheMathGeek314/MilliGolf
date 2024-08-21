@@ -34,7 +34,7 @@ namespace MilliGolf {
         public static PlayMakerFSM areaTitleRef;
 
         new public string GetName() => "MilliGolf";
-        public override string GetVersion() => "1.1.0.0";
+        public override string GetVersion() => "1.1.0.1";
 
         public static LocalGolfSettings golfData { get; set; } = new();
         public void OnLoadLocal(LocalGolfSettings g) => golfData = g;
@@ -1208,6 +1208,7 @@ namespace MilliGolf {
                 GameObject.Destroy(MilliGolf.millibelleRef.gameObject);
                 MilliGolf.millibelleRef = GameObject.Instantiate(MilliGolf.prefabs["Ruins_Bathhouse"]["Banker Spa NPC"], gScene.millibelleSpawn, Quaternion.identity);
                 MilliGolf.millibelleRef.SetActive(true);
+                MilliGolf.millibelleRef.GetComponent<MeshRenderer>().sortingOrder = 1;
                 MilliGolf.currentScore = 0;
                 if(MilliGolf.ballCam == 1) {
                     typeof(CameraTarget).GetField("heroTransform", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(GameCameras.instance.cameraTarget, MilliGolf.millibelleRef.transform);

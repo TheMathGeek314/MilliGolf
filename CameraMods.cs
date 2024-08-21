@@ -46,7 +46,7 @@ namespace MilliGolf {
 						camTarget.enteredBot = false;
 					}
 				}
-				if(!MilliGolf.ballCam) {
+				if(MilliGolf.ballCam == 0) {
 					GameCameras.instance.cameraController.LockToArea(self);
 				}
 				else {
@@ -59,7 +59,7 @@ namespace MilliGolf {
 
 		private static void CameraLockArea_OnTriggerStay2D(On.CameraLockArea.orig_OnTriggerStay2D orig, CameraLockArea self, Collider2D otherCollider) {
 			if(callPrivateMethod_bool(self, "IsInApplicableGameState") && otherCollider.CompareTag("Player")) {
-				if(!MilliGolf.ballCam) {
+				if(MilliGolf.ballCam == 0) {
 					GameCameras.instance.cameraController.LockToArea(self);
 				}
 				else {
@@ -104,7 +104,7 @@ namespace MilliGolf {
 						camTarget.exitedBot = false;
 					}
 				}
-				if(!MilliGolf.ballCam) {
+				if(MilliGolf.ballCam == 0) {
 					GameCameras.instance.cameraController.ReleaseLock(self);
 				}
 				else {

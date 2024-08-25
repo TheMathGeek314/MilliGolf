@@ -34,7 +34,7 @@ namespace MilliGolf {
         public static PlayMakerFSM areaTitleRef;
 
         new public string GetName() => "MilliGolf";
-        public override string GetVersion() => "1.1.0.1";
+        public override string GetVersion() => "1.1.1.0";
 
         public static LocalGolfSettings golfData { get; set; } = new();
         public void OnLoadLocal(LocalGolfSettings g) => golfData = g;
@@ -228,6 +228,8 @@ namespace MilliGolf {
                 wasInCustomRoom = true;
                 if(golfScene.courseList.Contains(self.sceneName)) {
                     isInGolfRoom = true;
+                    currentScore = 0;
+                    GameCameras.instance.geoCounter.geoTextMesh.text = currentScore.ToString();
                     HeroController.instance.gameObject.FindGameObjectInChildren("Vignette").SetActive(false);
                     currentHoleTarget = golfScene.courseDict[self.sceneName].holeTarget;
                     if(golfScene.courseDict[self.sceneName].millibelleSpawn != null) {
@@ -321,7 +323,6 @@ namespace MilliGolf {
                 }
             }
             doCustomLoad = false;
-            currentScore = 0;
         }
 
         public static void createCourseData() {
@@ -958,6 +959,7 @@ namespace MilliGolf {
                 MilliGolf.tinkDamager = damager;
                 if(new List<string> { "Slash", "AltSlash", "UpSlash", "DownSlash", "Great Slash", "Dash Slash", "Hit L", "Hit R" }.Contains(damager)) {
                     MilliGolf.currentScore++;
+                    GameCameras.instance.geoCounter.geoTextMesh.text = MilliGolf.currentScore.ToString();
                 }
             }
             Finish();
@@ -1210,6 +1212,7 @@ namespace MilliGolf {
                 MilliGolf.millibelleRef.SetActive(true);
                 MilliGolf.millibelleRef.GetComponent<MeshRenderer>().sortingOrder = 1;
                 MilliGolf.currentScore = 0;
+                GameCameras.instance.geoCounter.geoTextMesh.text = MilliGolf.currentScore.ToString();
                 if(MilliGolf.ballCam == 1) {
                     typeof(CameraTarget).GetField("heroTransform", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(GameCameras.instance.cameraTarget, MilliGolf.millibelleRef.transform);
                 }

@@ -316,7 +316,7 @@ namespace MilliGolf {
                     if(/*is not rando'd && */totalScore <= golfMilestones.Expert && golfData.scoreboard.Count == 18) {              //Rando Integration
                         addTrophyStatue(totalScore);
                     }
-                    //else if(is rando'd && obtained at least one golf trophy dupe check) {                                           //Rando Integration
+                    //else if(is rando'd && obtained at least one golf trophy dupe check) {                                         //Rando Integration
                         //addTrophyStatue(totalScore);
                     //}
                     else {
@@ -662,8 +662,8 @@ namespace MilliGolf {
             if(totalScore <= golfMilestones.Master) {
                 grant second golf trophy dupe check if not already granted
             }
-            if(totalScore <= golfMilestones.Grandmaster && has exactly two golf trophy dupe checks) {
-                grant third golf trophy dupe check
+            if(totalScore <= golfMilestones.Grandmaster) {
+                grant third golf trophy dupe check if not already granted
             }
              */
         }
@@ -751,14 +751,16 @@ namespace MilliGolf {
                     //}
                     /*
                     else {                                                          //Rando Integration
-                        if(totalScore <= golfMilestones.Radiant) {
-                            grant third scoreboard dupe check if not yet granted
-                        }
-                        else if(totalScore <= golfMilestones.Ascended) {
-                            grant second scoreboard dupe check if not yet granted
-                        }
-                        else if(golfData.scoreboard.Count >= 18) {
-                            grant first scoreboard dupe if not yet granted
+                        if(golfData.scoreboard.Count >= 18) {
+                            if(totalScore <= golfMilestones.Radiant) {
+                                grant third scoreboard dupe check if not yet granted
+                            }
+                            else if(totalScore <= golfMilestones.Ascended) {
+                                grant second scoreboard dupe check if not yet granted
+                            }
+                            else if(golfData.scoreboard.Count >= 18) {
+                                grant first scoreboard dupe check if not yet granted
+                            }
                         }
                         if has three scoreboard dupe checks {
                             uuiImage.sprite = bsu.stateSprites[4];

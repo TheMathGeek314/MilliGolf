@@ -758,7 +758,7 @@ namespace MilliGolf {
                             else if(totalScore <= golfMilestones.Ascended) {
                                 grant second scoreboard dupe check if not yet granted
                             }
-                            else if(golfData.scoreboard.Count >= 18) {
+                            else {
                                 grant first scoreboard dupe check if not yet granted
                             }
                         }

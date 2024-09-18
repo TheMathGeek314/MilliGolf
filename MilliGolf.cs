@@ -752,14 +752,12 @@ namespace MilliGolf {
                     /*
                     else {                                                          //Rando Integration
                         if(golfData.scoreboard.Count >= 18) {
-                            if(totalScore <= golfMilestones.Radiant) {
-                                grant third scoreboard dupe check if not yet granted
-                            }
-                            else if(totalScore <= golfMilestones.Ascended) {
+                            grant first scoreboard dupe check if not yet granted
+                            if(totalScore <= golfMilestones.Ascended) {
                                 grant second scoreboard dupe check if not yet granted
                             }
-                            else {
-                                grant first scoreboard dupe check if not yet granted
+                            if(totalScore <= golfMilestones.Radiant) {
+                                grant third scoreboard dupe check if not yet granted
                             }
                         }
                         if has three scoreboard dupe checks {

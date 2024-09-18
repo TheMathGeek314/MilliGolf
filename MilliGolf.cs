@@ -34,7 +34,7 @@ namespace MilliGolf {
         public static PlayMakerFSM areaTitleRef;
 
         new public string GetName() => "MilliGolf";
-        public override string GetVersion() => "1.1.1.0";
+        public override string GetVersion() => "1.2.0.0a";
 
         public static LocalGolfSettings golfData { get; set; } = new();
         public void OnLoadLocal(LocalGolfSettings g) => golfData = g;
@@ -197,20 +197,22 @@ namespace MilliGolf {
 
         private void earlySceneChange(Scene from, Scene to) {
             if(to.name == "Town" && !doCustomLoad) {
-                GameObject golfTransition = GameObject.Instantiate(prefabs["Town"]["room_divine"], new Vector3(195.2094f, 7.8265f, 0), Quaternion.identity);
-                golfTransition.RemoveComponent<DeactivateIfPlayerdataFalse>();
-                golfTransition.SetActive(true);
-                
-                PlayMakerFSM doorControlFSM = PlayMakerFSM.FindFsmOnGameObject(golfTransition, "Door Control");
-                FsmState changeSceneState = doorControlFSM.GetState("Change Scene");
-                ((BeginSceneTransition)changeSceneState.GetAction(1)).sceneName = "GG_Workshop";
-                changeSceneState.InsertAction(new setCustomLoad(true), 1);
-                changeSceneState.InsertAction(new logProgression(), 2);
-
-                GameObject golfTent = GameObject.Instantiate(prefabs["Town"]["divine_tent"], new Vector3(205.1346f, 13.1462f, 47.2968f), Quaternion.identity);
-                setupTentPrefab(golfTent);
-                golfTent.GetComponent<PlayMakerFSM>().enabled = false;
-                golfTent.SetActive(true);
+                //if obtained at least one golf door check {              //Rando Integration
+                    GameObject golfTransition = GameObject.Instantiate(prefabs["Town"]["room_divine"], new Vector3(195.2094f, 7.8265f, 0), Quaternion.identity);
+                    golfTransition.RemoveComponent<DeactivateIfPlayerdataFalse>();
+                    golfTransition.SetActive(true);
+                    
+                    PlayMakerFSM doorControlFSM = PlayMakerFSM.FindFsmOnGameObject(golfTransition, "Door Control");
+                    FsmState changeSceneState = doorControlFSM.GetState("Change Scene");
+                    ((BeginSceneTransition)changeSceneState.GetAction(1)).sceneName = "GG_Workshop";
+                    changeSceneState.InsertAction(new setCustomLoad(true), 1);
+                    changeSceneState.InsertAction(new logProgression(), 2);
+                    
+                    GameObject golfTent = GameObject.Instantiate(prefabs["Town"]["divine_tent"], new Vector3(205.1346f, 13.1462f, 47.2968f), Quaternion.identity);
+                    setupTentPrefab(golfTent);
+                    golfTent.GetComponent<PlayMakerFSM>().enabled = false;
+                    golfTent.SetActive(true);
+                //}
             }
             else if(to.name == "GG_Workshop" && doCustomLoad) {
                 for(int i = 0; i < golfScene.courseList.Count; i++) {
@@ -307,10 +309,16 @@ namespace MilliGolf {
                         else if(go.name == "GG_Summary_Board") {
                             updateHallScoreboard(go);
                         }
+                        else if(go.name == "Zote_Break_wall") {
+                            go.GetComponent<PlayMakerFSM>().enabled = false;
+                        }
                     }
-                    if(totalScore <= golfMilestones.Expert && golfData.scoreboard.Count == 18) {
+                    if(/*is not rando'd && */totalScore <= golfMilestones.Expert && golfData.scoreboard.Count == 18) {              //Rando Integration
                         addTrophyStatue(totalScore);
                     }
+                    //else if(is rando'd && obtained at least one golf trophy dupe check) {                                           //Rando Integration
+                        //addTrophyStatue(totalScore);
+                    //}
                     else {
                         addQuirrel(19.7f, 6.81f, true, "HALL");
                     }
@@ -502,6 +510,9 @@ namespace MilliGolf {
         }
 
         public static void placeDoor(float x, float y, golfScene room) {
+            //if hasn't obtained golf door check (room.name) {                 //Rando Integration
+                //return;
+            //}
             GameObject.Instantiate(prefabs["GG_Atrium"]["GG_big_door_part_small"], new Vector3(x, y, 8.13f), Quaternion.identity).SetActive(true);
 
             GameObject glow1 = GameObject.Instantiate(prefabs["GG_Atrium"]["Col_Glow_Remasker (1)"], new Vector3(x - 0.6f, y - 4.3f, 11.99f), Quaternion.identity);
@@ -575,9 +586,6 @@ namespace MilliGolf {
         }
 
         private void addTrophyStatue(int score) {
-            if(score > golfMilestones.Expert) {
-                return;
-            }
             GameObject statueBase = GameObject.Instantiate(prefabs["GG_Workshop"]["GG_Statue_Knight"], new Vector3(18.2f, 6.4f, 0.9277f), Quaternion.identity);
             statueBase.FindGameObjectInChildren("Statue").RemoveComponent<BossStatueCompletionStates>();
             GameObject knight1 = statueBase.FindGameObjectInChildren("Knight_v01");
@@ -594,7 +602,7 @@ namespace MilliGolf {
                 }
             }
             
-            if(score <= golfMilestones.Grandmaster) {
+            if(/*(is not rando'd && */score <= golfMilestones.Grandmaster/* ) || (is rando'd && has three golf scoreboard dupe checks)*/) {                 //Rando Integration
                 knight1.SetActive(false);
                 knight2.SetActive(false);
                 knight3.SetActive(true);
@@ -608,7 +616,7 @@ namespace MilliGolf {
                 }
                 outputText = "GRANDMASTER\r\nCongratulations, you have achieved an an extraordinary score and can officially consider yourself a God Gamer.<page>(No affiliation with fireb0rn and his academy)";
             }
-            else if(score <= golfMilestones.Master) {
+            else if(/*(is not rando'd && */score <= golfMilestones.Master/* ) || (is rando'd && has two golf scoreboard dupe checks*/) {                    //Rando Integration
                 knight1.SetActive(false);
                 knight2.SetActive(true);
                 knight3.SetActive(false);
@@ -647,6 +655,17 @@ namespace MilliGolf {
                 total += golfData.scoreboard[key];
             }
             totalScore = total;
+            /*                                                                              //Rando Integration
+            if(totalScore <= golfMilestones.Expert) {
+                grant first golf trophy dupe check if not already granted
+            }
+            if(totalScore <= golfMilestones.Master) {
+                grant second golf trophy dupe check if not already granted
+            }
+            if(totalScore <= golfMilestones.Grandmaster && has exactly two golf trophy dupe checks) {
+                grant third golf trophy dupe check
+            }
+             */
         }
 
         private void updateHallScoreboard(GameObject summaryBoard) {
@@ -659,26 +678,48 @@ namespace MilliGolf {
             listGrid.FindAllChildren(children);
             List<GameObject> excessLines = new();
             for(int i = 1; i < 10; i++) {
-                children[i].FindGameObjectInChildren("Name_Text").GetComponent<uuiText>().text = golfScene.courseDict[golfScene.courseList[i - 1]].name;
+                string sceneName = golfScene.courseDict[golfScene.courseList[i - 1]].name;
+                //if hasn't obtained golf score (sceneName) check {                         //Rando Integration
+                    //sceneName = "???";
+                //}
+                children[i].FindGameObjectInChildren("Name_Text").GetComponent<uuiText>().text = sceneName;
             }
             for(int i = 10; i < 12; i++) {
                 excessLines.Add(children[i]);
             }
             for(int i = 12; i < 21; i++) {
                 string sceneName = golfScene.courseDict[golfScene.courseList[i - 12]].scene;
-                children[i].FindGameObjectInChildren("Name_Text").GetComponent<uuiText>().text = (golfData.scoreboard.ContainsKey(sceneName) ? golfData.scoreboard[sceneName].ToString() : "---");
+                string scoreText;
+                if(!golfData.scoreboard.ContainsKey(sceneName) /* || hasn't obtained golf score (sceneName) check*/) {                  //Rando Integration
+                    scoreText = "---";
+                }
+                else {
+                    scoreText = golfData.scoreboard[sceneName].ToString();
+                }
+                children[i].FindGameObjectInChildren("Name_Text").GetComponent<uuiText>().text = scoreText;
             }
             uuiText totalText = children[21].FindGameObjectInChildren("Name_Text").GetComponent<uuiText>();
             totalText.text = "Total";
             totalText.alignment = TextAnchor.MiddleRight;
             excessLines.Add(children[22]);
             for(int i = 23; i < 32; i++) {
-                children[i].FindGameObjectInChildren("Name_Text").GetComponent<uuiText>().text = golfScene.courseDict[golfScene.courseList[i - 14]].name;
+                string sceneName = golfScene.courseDict[golfScene.courseList[i - 14]].name;
+                //if hasn't obtained golf score (sceneName) check {                         //Rando Integration
+                    //sceneName = "???";
+                //}
+                children[i].FindGameObjectInChildren("Name_Text").GetComponent<uuiText>().text = sceneName;
             }
             excessLines.Add(children[33]);
             for(int i = 34; i < 43; i++) {
                 string sceneName = golfScene.courseDict[golfScene.courseList[i - 25]].scene;
-                children[i].FindGameObjectInChildren("Name_Text").GetComponent<uuiText>().text = (golfData.scoreboard.ContainsKey(sceneName) ? golfData.scoreboard[sceneName].ToString() : "---");
+                string scoreText;
+                if(!golfData.scoreboard.ContainsKey(sceneName) /* || hasn't obtained golf score (sceneName) check*/) {                  //Rando Integration
+                    scoreText = "---";
+                }
+                else {
+                    scoreText = golfData.scoreboard[sceneName].ToString();
+                }
+                children[i].FindGameObjectInChildren("Name_Text").GetComponent<uuiText>().text = scoreText;
             }
             children[32].FindGameObjectInChildren("Name_Text").GetComponent<uuiText>().text = totalScore.ToString();
             for(int i = 43; i < Math.Min(45, children.Count); i++) {
@@ -694,18 +735,45 @@ namespace MilliGolf {
                 GameObject image = children[i].FindGameObjectInChildren("Image");
                 if(i == 32) {
                     UnityEngine.UI.Image uuiImage = image.GetComponent<UnityEngine.UI.Image>();
-                    if(golfData.scoreboard.Count < 18) {
-                        uuiImage.sprite = bsu.stateSprites[1];
-                    }
-                    else if(totalScore <= golfMilestones.Radiant) {
-                        uuiImage.sprite = bsu.stateSprites[4];
-                    }
-                    else if(totalScore <= golfMilestones.Ascended) {
-                        uuiImage.sprite = bsu.stateSprites[3];
-                    }
-                    else {
-                        uuiImage.sprite = bsu.stateSprites[2];
-                    }
+                    //if doing vanilla unrandomized golf {                          //Rando Integration
+                        if(golfData.scoreboard.Count < 18) {
+                            uuiImage.sprite = bsu.stateSprites[1];
+                        }
+                        else if(totalScore <= golfMilestones.Radiant) {
+                            uuiImage.sprite = bsu.stateSprites[4];
+                        }
+                        else if(totalScore <= golfMilestones.Ascended) {
+                            uuiImage.sprite = bsu.stateSprites[3];
+                        }
+                        else {
+                            uuiImage.sprite = bsu.stateSprites[2];
+                        }
+                    //}
+                    /*
+                    else {                                                          //Rando Integration
+                        if(totalScore <= golfMilestones.Radiant) {
+                            grant third scoreboard dupe check if not yet granted
+                        }
+                        else if(totalScore <= golfMilestones.Ascended) {
+                            grant second scoreboard dupe check if not yet granted
+                        }
+                        else if(golfData.scoreboard.Count >= 18) {
+                            grant first scoreboard dupe if not yet granted
+                        }
+                        if has three scoreboard dupe checks {
+                            uuiImage.sprite = bsu.stateSprites[4];
+                        }
+                        else if has two scoreboard dupe checks {
+                            uuiImage.sprite = bsu.stateSprites[3];
+                        }
+                        else if has one scoreboard dupe check {
+                            uuiImage.sprite = bsu.stateSprites[2];
+                        }
+                        else {
+                            uuiImage.sprite = bsu.stateSprites[1];
+                        }
+                    //}
+                     */
                     uuiImage.SetNativeSize();
                 }
                 else {
@@ -761,6 +829,7 @@ namespace MilliGolf {
 
         public static void completedHole(string sceneName, int score) {
             if(!golfData.scoreboard.ContainsKey(sceneName)) {
+                //grant golf score (sceneName) check                    //Rando Integration
                 golfData.scoreboard.Add(sceneName, score);
                 pbTracker.update(score, true);
             }
@@ -776,6 +845,7 @@ namespace MilliGolf {
                 GameObject areaTitle = titleHolder.FindGameObjectInChildren("Area Title");
                 areaTitleRef = areaTitle.GetComponent<PlayMakerFSM>();
             }
+            areaTitleRef.gameObject.SetActive(false);
             areaTitleRef.gameObject.SetActive(true);
         }
     }

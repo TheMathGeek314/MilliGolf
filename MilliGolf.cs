@@ -69,7 +69,7 @@ namespace MilliGolf {
             On.GameManager.OnNextLevelReady += lateSceneChange;
             On.PlayMakerFSM.OnEnable += editFSM;
             On.BossSummaryBoard.Show += locationCheck;
-            On.PlayerData.SetBool += falopa;
+            On.PlayerData.SetBool += preserveProgression;
             ModHooks.TakeHealthHook += takeHealth;
             ModHooks.NewGameHook += onNewGameSetup;
             ModHooks.SavegameLoadHook += onSaveLoadSetup;
@@ -100,11 +100,11 @@ namespace MilliGolf {
             }
         }
 
-        private void falopa(On.PlayerData.orig_SetBool orig, PlayerData self, string boolName, bool value)
+        private void preserveProgression(On.PlayerData.orig_SetBool orig, PlayerData self, string boolName, bool value)
         {
             try
             {
-            progressionLog.modifyLoggedProgression(prog => prog.SetVariable(boolName, value));
+            progressionLog.modifyLoggedProgression(prog => prog.SetVariable(boolName, value)); // If progression is obtained inside the courses, keep it when leaving.
             } catch (ArgumentException) {}
             orig(self, boolName, value);
         }

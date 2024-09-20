@@ -12,9 +12,12 @@ using Modding;
 using Satchel;
 using UObject = UnityEngine.Object;
 using uuiText = UnityEngine.UI.Text;
+using MilliGolf.Rando.Manager;
+using MilliGolf.Rando.Settings;
+using MilliGolf.Rando.Interop;
 
 namespace MilliGolf {
-    public class MilliGolf: Mod, ILocalSettings<LocalGolfSettings> {
+    public class MilliGolf: Mod, ILocalSettings<LocalGolfSettings>, IGlobalSettings<GolfRandoSettings> {
         public static bool doCustomLoad = false;
         public static bool isInGolfRoom = false;
         public static bool wasInCustomRoom = false;
@@ -33,17 +36,40 @@ namespace MilliGolf {
         public static GameObject holeRef;
         public static PlayMakerFSM areaTitleRef;
 
+        private static MilliGolf _instance;
+        public MilliGolf() : base()
+        {
+            _instance = this;
+        }
+        internal static MilliGolf Instance
+        {
+            get
+            {
+                if (_instance == null)
+                {
+                    throw new InvalidOperationException($"{nameof(MilliGolf)} was never initialized");
+                }
+                return _instance;
+            }
+        }
         new public string GetName() => "MilliGolf";
-        public override string GetVersion() => "1.2.0.0a";
+        public override string GetVersion() => "1.2.0.0";
 
         public static LocalGolfSettings golfData { get; set; } = new();
         public void OnLoadLocal(LocalGolfSettings g) => golfData = g;
         public LocalGolfSettings OnSaveLocal() => golfData;
+        public static GolfRandoSettings GS { get; set; } = new();
+        public void OnLoadGlobal(GolfRandoSettings s) => GS = s;
+        public GolfRandoSettings OnSaveGlobal() => GS;
+        public delegate void BoardCheck(int score);
+        public static event BoardCheck OnBoardCheck;
 
         public override void Initialize(Dictionary<string, Dictionary<string, GameObject>> preloadedObjects) {
             UnityEngine.SceneManagement.SceneManager.activeSceneChanged += earlySceneChange;
             On.GameManager.OnNextLevelReady += lateSceneChange;
             On.PlayMakerFSM.OnEnable += editFSM;
+            On.BossSummaryBoard.Show += locationCheck;
+            On.PlayerData.SetBool += preserveProgression;
             ModHooks.TakeHealthHook += takeHealth;
             ModHooks.NewGameHook += onNewGameSetup;
             ModHooks.SavegameLoadHook += onSaveLoadSetup;
@@ -61,6 +87,26 @@ namespace MilliGolf {
             millibellePrefab.AddComponent(typeof(collisionDetector));
 
             createCourseData();
+
+            // Only make a Rando Integration if Randomizer 4 is active.
+            if (ModHooks.GetMod("Randomizer 4") is Mod)
+            {
+                GolfManager.Hook();
+
+                if (ModHooks.GetMod("RandoSettingsManager") is Mod)
+                {
+                    RSM_Interop.Hook();
+                }
+            }
+        }
+
+        private void preserveProgression(On.PlayerData.orig_SetBool orig, PlayerData self, string boolName, bool value)
+        {
+            try
+            {
+            progressionLog.modifyLoggedProgression(prog => prog.SetVariable(boolName, value)); // If progression is obtained inside the courses, keep it when leaving.
+            } catch (ArgumentException) {}
+            orig(self, boolName, value);
         }
 
         public override List<(string, string)> GetPreloadNames() {
@@ -80,6 +126,10 @@ namespace MilliGolf {
         }
 
         private void onNewGameSetup() {
+            GolfManager.SaveSettings.randoSettings.Enabled = GolfManager.GlobalSettings.Enabled;
+            GolfManager.SaveSettings.randoSettings.CourseAccess = GolfManager.GlobalSettings.CourseAccess;
+            GolfManager.SaveSettings.randoSettings.CourseCompletion = GolfManager.GlobalSettings.CourseCompletion;
+            GolfManager.SaveSettings.randoSettings.GlobalGoals = GolfManager.GlobalSettings.GlobalGoals;
             startGameSetup();
             progressionLog.wipeProgression();
         }
@@ -196,23 +246,25 @@ namespace MilliGolf {
         }
 
         private void earlySceneChange(Scene from, Scene to) {
+            bool accessRandomized = golfData.randoSettings.Enabled && golfData.randoSettings.CourseAccess;
             if(to.name == "Town" && !doCustomLoad) {
-                //if obtained at least one golf door check {              //Rando Integration
-                    GameObject golfTransition = GameObject.Instantiate(prefabs["Town"]["room_divine"], new Vector3(195.2094f, 7.8265f, 0), Quaternion.identity);
-                    golfTransition.RemoveComponent<DeactivateIfPlayerdataFalse>();
-                    golfTransition.SetActive(true);
-                    
-                    PlayMakerFSM doorControlFSM = PlayMakerFSM.FindFsmOnGameObject(golfTransition, "Door Control");
-                    FsmState changeSceneState = doorControlFSM.GetState("Change Scene");
-                    ((BeginSceneTransition)changeSceneState.GetAction(1)).sceneName = "GG_Workshop";
-                    changeSceneState.InsertAction(new setCustomLoad(true), 1);
-                    changeSceneState.InsertAction(new logProgression(), 2);
-                    
-                    GameObject golfTent = GameObject.Instantiate(prefabs["Town"]["divine_tent"], new Vector3(205.1346f, 13.1462f, 47.2968f), Quaternion.identity);
-                    setupTentPrefab(golfTent);
-                    golfTent.GetComponent<PlayMakerFSM>().enabled = false;
-                    golfTent.SetActive(true);
-                //}
+                {
+                    if(!accessRandomized || accessRandomized && golfData.randoSaveState.courseAccess.AnyTrue())
+                    {
+                        GameObject golfTransition = GameObject.Instantiate(prefabs["Town"]["room_divine"], new Vector3(195.2094f, 7.8265f, 0), Quaternion.identity);
+                        golfTransition.RemoveComponent<DeactivateIfPlayerdataFalse>();
+                        golfTransition.SetActive(true);
+                        PlayMakerFSM doorControlFSM = PlayMakerFSM.FindFsmOnGameObject(golfTransition, "Door Control");
+                        FsmState changeSceneState = doorControlFSM.GetState("Change Scene");
+                        ((BeginSceneTransition)changeSceneState.GetAction(1)).sceneName = "GG_Workshop";
+                        changeSceneState.InsertAction(new setCustomLoad(true), 1);
+                        changeSceneState.InsertAction(new logProgression(), 2);
+                        GameObject golfTent = GameObject.Instantiate(prefabs["Town"]["divine_tent"], new Vector3(205.1346f, 13.1462f, 47.2968f), Quaternion.identity);
+                        setupTentPrefab(golfTent);
+                        golfTent.GetComponent<PlayMakerFSM>().enabled = false;
+                        golfTent.SetActive(true);
+                    }
+                }
             }
             else if(to.name == "GG_Workshop" && doCustomLoad) {
                 for(int i = 0; i < golfScene.courseList.Count; i++) {
@@ -279,6 +331,53 @@ namespace MilliGolf {
                                 go.SetActive(false);
                             }
                         }
+
+                        // Remove several interactable items that could affect rando runs
+                        if(go.name == "RestBench")
+                        {
+                            go.SetActive(false);
+                        }
+                        if(go.name.Contains("Grub"))
+                        {
+                            go.SetActive(false);
+                        }
+                        if(go.name == "Cornifer")
+                        {
+                            go.SetActive(false);
+                        }
+                        if(go.name == "Dream Plant")
+                        {
+                            go.SetActive(false);
+                        }
+                        if(go.name.Contains("Soul Totem"))
+                        {
+                            go.SetActive(false);
+                        }
+                        if(go.name.Contains("Shiny Item"))
+                        {
+                            go.SetActive(false);
+                        }
+                        if(go.name.Contains("Geo Rock"))
+                        {
+                            go.SetActive(false);
+                        }
+                        if(go.name.Contains("Breakable Wall"))
+                        {
+                            go.SetActive(false);
+                        }
+                        if(go.name.Contains("One Way Wall"))
+                        {
+                            go.SetActive(false);
+                        }
+                        if(go.name.Contains("Quake Floor"))
+                        {
+                            go.SetActive(false);
+                        }
+                        if(go.name.Contains("Dream Dialogue"))
+                        {
+                            go.SetActive(false);
+                        }
+
                         if(golfScene.courseDict[self.sceneName].objectsToDisable.Contains(go.name)) {
                             go.SetActive(false);
                         }
@@ -313,12 +412,11 @@ namespace MilliGolf {
                             go.GetComponent<PlayMakerFSM>().enabled = false;
                         }
                     }
-                    if(/*is not rando'd && */totalScore <= golfMilestones.Expert && golfData.scoreboard.Count == 18) {              //Rando Integration
+
+                    bool radiantRando = golfData.randoSettings.Enabled && golfData.randoSettings.GlobalGoals >= MaxTier.Radiant;
+                    if((!radiantRando && totalScore <= golfMilestones.Expert && golfData.scoreboard.Count == 18) || radiantRando && golfData.randoSaveState.globalGoals >= 3) {
                         addTrophyStatue(totalScore);
                     }
-                    //else if(is rando'd && obtained at least one golf trophy dupe check) {                                         //Rando Integration
-                        //addTrophyStatue(totalScore);
-                    //}
                     else {
                         addQuirrel(19.7f, 6.81f, true, "HALL");
                     }
@@ -338,7 +436,6 @@ namespace MilliGolf {
             dirtmouth.doorColor = new Color(0.156f, 0.2f, 0.345f, 0.466f);
             dirtmouth.millibelleSpawn = new Vector3(11, 44.8f, 0.006f);
             dirtmouth.knightSpawn = new Vector3(4.2f, 44.4f, 0.004f);
-            dirtmouth.objectsToDisable.Add("RestBench");
             dirtmouth.hasQuirrel = true;
             dirtmouth.quirrelData = (7.6f, 44.81f, true, "DIRTMOUTH");
             dirtmouth.flagData = ("flagSignSW", 188.4f, 8.81f);
@@ -353,7 +450,6 @@ namespace MilliGolf {
             grounds.doorColor = new Color(0.5309f, 0.5961f, 0.9054f, 0.466f);
             grounds.millibelleSpawn = new Vector3(17, 78.8f, 0.006f);
             grounds.knightSpawn = new Vector3(4.8f, 78.4f, 0.004f);
-            grounds.objectsToDisable.Add("Quake Floor");
             grounds.objectsToDisable.Add("grave_tall_pole_sil (2)");
             grounds.flagData = ("flagSignE", 29.8f, 3.81f);
             
@@ -369,7 +465,6 @@ namespace MilliGolf {
             greenpath.doorColor = new Color(0.3909f, 0.6868f, 0.3696f, 0.466f);
             greenpath.millibelleSpawn = new Vector3(31, 115.8f, 0.006f);
             greenpath.knightSpawn = new Vector3(33.7f, 115.4f, 0.004f);
-            greenpath.objectsToDisable.Add("RestBench");
             greenpath.objectsToDisable.Add("Toll Gate");
             greenpath.objectsToDisable.Add("Toll Gate (1)");
             greenpath.objectsToDisable.Add("Toll Gate Machine");
@@ -406,6 +501,7 @@ namespace MilliGolf {
             cliffs.doorColor = new Color(0.2509f, 0.3761f, 0.5254f, 0.466f);
             cliffs.millibelleSpawn = new Vector3(133, 143.8f, 0.006f);
             cliffs.knightSpawn = new Vector3(137.7f, 143.4f, 0.004f);
+            cliffs.objectsToDisable.Add("Tut_tablet_top");
             cliffs.flagData = ("flagSignE", 114.6f, 7.81f);
 
             golfScene abyss = new("The Abyss", "Abyss_06_Core", "top1", "bot1");
@@ -415,6 +511,7 @@ namespace MilliGolf {
             abyss.childrenToDisable.Add("abyss_door", new List<string> { "Gate", "Collider" });
             abyss.objectsToDisable.Add("floor_closed");
             abyss.objectsToDisable.Add("Shade Sibling Spawner");
+            abyss.objectsToDisable.Add("Tut_tablet_Abyss");
             abyss.flagData = ("flagSignSW", 30.6f, 3.81f);
 
             golfScene fungal = new("Fungal Wastes", "Fungus2_12", "left1", "bot1");
@@ -428,9 +525,6 @@ namespace MilliGolf {
             sanctum.doorColor = new Color(0.6709f, 0.7361f, 1, 0.466f);
             sanctum.millibelleSpawn = new Vector3(10, 3.8f, 0.006f);
             sanctum.knightSpawn = new Vector3(2.2f, 3.4f, 0.004f);
-            sanctum.objectsToDisable.Add("Quake Floor Glass");
-            sanctum.objectsToDisable.Add("Quake Floor Glass (1)");
-            sanctum.objectsToDisable.Add("Quake Floor Glass (2)");
             sanctum.flagData = ("flagSignSE", 53.5f, 3.81f);
 
             golfScene basin = new("Ancient Basin", "Abyss_04", "top1", "bot1");
@@ -438,6 +532,7 @@ namespace MilliGolf {
             basin.millibelleSpawn = new Vector3(49, 83.8f, 0.006f);
             basin.knightSpawn = new Vector3(56, 87.1f, 0.004f);
             basin.objectsToDisable.Add("black_grass3 (2)");
+            basin.objectsToDisable.Add("Fountain Donation");
             basin.flagData = ("flagSignSE", 54.8f, 8.81f);
 
             golfScene qg = new("Queen's Gardens", "Fungus3_04", "left1", "right2");
@@ -510,9 +605,10 @@ namespace MilliGolf {
         }
 
         public static void placeDoor(float x, float y, golfScene room) {
-            //if hasn't obtained golf door check (room.name) {                 //Rando Integration
-                //return;
-            //}
+            bool accessRandomized = golfData.randoSettings.Enabled && golfData.randoSettings.CourseAccess;
+            if (accessRandomized && !golfData.randoSaveState.courseAccess.GetVariable<bool>(room.scene))
+                return;
+
             GameObject.Instantiate(prefabs["GG_Atrium"]["GG_big_door_part_small"], new Vector3(x, y, 8.13f), Quaternion.identity).SetActive(true);
 
             GameObject glow1 = GameObject.Instantiate(prefabs["GG_Atrium"]["Col_Glow_Remasker (1)"], new Vector3(x - 0.6f, y - 4.3f, 11.99f), Quaternion.identity);
@@ -601,8 +697,10 @@ namespace MilliGolf {
                     spotlightChild.SetActive(false);
                 }
             }
-            
-            if(/*(is not rando'd && */score <= golfMilestones.Grandmaster/* ) || (is rando'd && has three golf scoreboard dupe checks)*/) {                 //Rando Integration
+
+            bool grandmasterRando = golfData.randoSettings.Enabled && golfData.randoSettings.GlobalGoals >= MaxTier.Grandmaster;
+            bool masterRando = golfData.randoSettings.Enabled && golfData.randoSettings.GlobalGoals >= MaxTier.Master;
+            if((!grandmasterRando && score <= golfMilestones.Grandmaster) || (grandmasterRando && golfData.randoSaveState.globalGoals >= 5)) {
                 knight1.SetActive(false);
                 knight2.SetActive(false);
                 knight3.SetActive(true);
@@ -616,7 +714,7 @@ namespace MilliGolf {
                 }
                 outputText = "GRANDMASTER\r\nCongratulations, you have achieved an an extraordinary score and can officially consider yourself a God Gamer.<page>(No affiliation with fireb0rn and his academy)";
             }
-            else if(/*(is not rando'd && */score <= golfMilestones.Master/* ) || (is rando'd && has two golf scoreboard dupe checks*/) {                    //Rando Integration
+            else if((!masterRando && score <= golfMilestones.Master) || (masterRando && golfData.randoSaveState.globalGoals >= 4)) {
                 knight1.SetActive(false);
                 knight2.SetActive(true);
                 knight3.SetActive(false);
@@ -649,23 +747,29 @@ namespace MilliGolf {
             currentEntrySheets["GolfTrophy"]["TROPHY"] = outputText;
         }
 
-        public static void calculateTotalScore() {
+        public static int calculateTotalScore() {
             int total = 0;
             foreach(string key in golfData.scoreboard.Keys) {
                 total += golfData.scoreboard[key];
             }
             totalScore = total;
-            /*                                                                              //Rando Integration
-            if(totalScore <= golfMilestones.Expert) {
-                grant first golf trophy dupe check if not already granted
+            return totalScore;
+        }
+
+        private void locationCheck(On.BossSummaryBoard.orig_Show orig, BossSummaryBoard self)
+        {
+            int total = calculateTotalScore();
+            bool completionRandomized = golfData.randoSettings.Enabled && golfData.randoSettings.CourseCompletion;
+            bool globalGoals = golfData.randoSettings.Enabled && golfData.randoSettings.GlobalGoals > MaxTier.None;
+            if (globalGoals)
+            {
+                // Set up hook for Rando to grant location checks - only if all courses were cleared
+                if (golfData.scoreboard.Count == 18 && (!completionRandomized || !golfData.randoSaveState.courseCompletion.AnyFalse()))
+                {
+                    OnBoardCheck?.Invoke(total);
+                }
             }
-            if(totalScore <= golfMilestones.Master) {
-                grant second golf trophy dupe check if not already granted
-            }
-            if(totalScore <= golfMilestones.Grandmaster) {
-                grant third golf trophy dupe check if not already granted
-            }
-             */
+            orig(self);
         }
 
         private void updateHallScoreboard(GameObject summaryBoard) {
@@ -677,11 +781,14 @@ namespace MilliGolf {
             List<GameObject> children = new();
             listGrid.FindAllChildren(children);
             List<GameObject> excessLines = new();
+            bool accessRandomized = golfData.randoSettings.Enabled && golfData.randoSettings.CourseAccess;
+            bool completionRandomized = golfData.randoSettings.Enabled && golfData.randoSettings.CourseCompletion;
             for(int i = 1; i < 10; i++) {
                 string sceneName = golfScene.courseDict[golfScene.courseList[i - 1]].name;
-                //if hasn't obtained golf score (sceneName) check {                         //Rando Integration
-                    //sceneName = "???";
-                //}
+                if (accessRandomized && !golfData.randoSaveState.courseAccess.GetVariable<bool>(golfScene.courseDict[golfScene.courseList[i - 1]].scene))
+                {
+                    sceneName = "???";
+                }
                 children[i].FindGameObjectInChildren("Name_Text").GetComponent<uuiText>().text = sceneName;
             }
             for(int i = 10; i < 12; i++) {
@@ -690,8 +797,14 @@ namespace MilliGolf {
             for(int i = 12; i < 21; i++) {
                 string sceneName = golfScene.courseDict[golfScene.courseList[i - 12]].scene;
                 string scoreText;
-                if(!golfData.scoreboard.ContainsKey(sceneName) /* || hasn't obtained golf score (sceneName) check*/) {                  //Rando Integration
+                
+                if (!golfData.scoreboard.ContainsKey(sceneName))
+                {
                     scoreText = "---";
+                }
+                else if (completionRandomized && !golfData.randoSaveState.courseCompletion.GetVariable<bool>(golfScene.courseDict[golfScene.courseList[i - 12]].scene))
+                {
+                    scoreText = "???";
                 }
                 else {
                     scoreText = golfData.scoreboard[sceneName].ToString();
@@ -704,24 +817,37 @@ namespace MilliGolf {
             excessLines.Add(children[22]);
             for(int i = 23; i < 32; i++) {
                 string sceneName = golfScene.courseDict[golfScene.courseList[i - 14]].name;
-                //if hasn't obtained golf score (sceneName) check {                         //Rando Integration
-                    //sceneName = "???";
-                //}
+                if (accessRandomized && !golfData.randoSaveState.courseAccess.GetVariable<bool>(golfScene.courseDict[golfScene.courseList[i - 14]].scene))
+                {
+                    sceneName = "???";
+                }
                 children[i].FindGameObjectInChildren("Name_Text").GetComponent<uuiText>().text = sceneName;
             }
             excessLines.Add(children[33]);
             for(int i = 34; i < 43; i++) {
                 string sceneName = golfScene.courseDict[golfScene.courseList[i - 25]].scene;
                 string scoreText;
-                if(!golfData.scoreboard.ContainsKey(sceneName) /* || hasn't obtained golf score (sceneName) check*/) {                  //Rando Integration
+                if (!golfData.scoreboard.ContainsKey(sceneName))
+                {
                     scoreText = "---";
+                }
+                else if (completionRandomized && !golfData.randoSaveState.courseCompletion.GetVariable<bool>(golfScene.courseDict[golfScene.courseList[i - 25]].scene))
+                {
+                    scoreText = "???";
                 }
                 else {
                     scoreText = golfData.scoreboard[sceneName].ToString();
                 }
                 children[i].FindGameObjectInChildren("Name_Text").GetComponent<uuiText>().text = scoreText;
             }
-            children[32].FindGameObjectInChildren("Name_Text").GetComponent<uuiText>().text = totalScore.ToString();
+            if (!completionRandomized || (completionRandomized && !golfData.randoSaveState.courseCompletion.AnyFalse()))
+            {
+                children[32].FindGameObjectInChildren("Name_Text").GetComponent<uuiText>().text = totalScore.ToString();
+            }
+            else
+            {
+                children[32].FindGameObjectInChildren("Name_Text").GetComponent<uuiText>().text = "???";
+            }
             for(int i = 43; i < Math.Min(45, children.Count); i++) {
                 excessLines.Add(children[i]);
             }
@@ -733,10 +859,13 @@ namespace MilliGolf {
             }
             for(int i = 1; i < 45; i++) {
                 GameObject image = children[i].FindGameObjectInChildren("Image");
+                bool goalsRandomized = golfData.randoSettings.Enabled && golfData.randoSettings.GlobalGoals > MaxTier.None;
                 if(i == 32) {
                     UnityEngine.UI.Image uuiImage = image.GetComponent<UnityEngine.UI.Image>();
-                    //if doing vanilla unrandomized golf {                          //Rando Integration
-                        if(golfData.scoreboard.Count < 18) {
+                    if (!goalsRandomized)
+                    {
+                        if(golfData.scoreboard.Count < 18 && (completionRandomized && golfData.randoSaveState.courseCompletion.AnyFalse() || !completionRandomized)) 
+                        {
                             uuiImage.sprite = bsu.stateSprites[1];
                         }
                         else if(totalScore <= golfMilestones.Radiant) {
@@ -748,32 +877,33 @@ namespace MilliGolf {
                         else {
                             uuiImage.sprite = bsu.stateSprites[2];
                         }
-                    //}
-                    /*
-                    else {                                                          //Rando Integration
-                        if(golfData.scoreboard.Count >= 18) {
-                            grant first scoreboard dupe check if not yet granted
-                            if(totalScore <= golfMilestones.Ascended) {
-                                grant second scoreboard dupe check if not yet granted
+                    }
+                    else {
+                        MaxTier randoGoals = golfData.randoSettings.GlobalGoals;
+                        if (randoGoals >= MaxTier.Radiant)
+                        {
+                            uuiImage.sprite = bsu.stateSprites[Math.Min(golfData.randoSaveState.globalGoals + 1, 4)];
+                        }
+                        else if (randoGoals == MaxTier.Ascended)
+                        {
+                            int goals = golfData.randoSaveState.globalGoals;
+                            if (totalScore <= golfMilestones.Radiant) {
+                                goals += 1;
                             }
-                            if(totalScore <= golfMilestones.Radiant) {
-                                grant third scoreboard dupe check if not yet granted
+                            uuiImage.sprite = bsu.stateSprites[Math.Min(goals + 1, 4)];  
+                        }
+                        else
+                        {
+                            int goals = golfData.randoSaveState.globalGoals;
+                            if (totalScore <= golfMilestones.Radiant) {
+                                goals += 1;
                             }
+                            if (totalScore <= golfMilestones.Ascended) {
+                                goals += 1;
+                            }
+                            uuiImage.sprite = bsu.stateSprites[Math.Min(goals + 1, 4)];  
                         }
-                        if has three scoreboard dupe checks {
-                            uuiImage.sprite = bsu.stateSprites[4];
-                        }
-                        else if has two scoreboard dupe checks {
-                            uuiImage.sprite = bsu.stateSprites[3];
-                        }
-                        else if has one scoreboard dupe check {
-                            uuiImage.sprite = bsu.stateSprites[2];
-                        }
-                        else {
-                            uuiImage.sprite = bsu.stateSprites[1];
-                        }
-                    //}
-                     */
+                    }
                     uuiImage.SetNativeSize();
                 }
                 else {
@@ -787,7 +917,31 @@ namespace MilliGolf {
             Dictionary<string, Dictionary<string, string>> currentEntrySheets = (Dictionary<string, Dictionary<string, string>>)field.GetValue(null);
             if(!currentEntrySheets.ContainsKey("GolfQuirrel")) {
                 Dictionary<string, string> golfQuirrel = new();
-                golfQuirrel.Add("HALL", "Welcome to MilliGolf, an 18-hole course and grand tour of Hallownest!<page>You may notice that you have full movement here, but don't worry. All outside progression will be restored when you leave.<page>Your total strokes will be tallied for each course on this scoreboard and will update if you beat your best score.<page>Maybe if you get a really good score, you'll get some kind of prize!<page>Best of luck and happy golfing!");
+                
+                // Quirrel having a slightly different dialogue depending on rando settings felt like a nice touch
+                if (!golfData.randoSettings.Enabled)
+                {
+                    golfQuirrel.Add("HALL", "Welcome to MilliGolf, an 18-hole course and grand tour of Hallownest!<page>You may notice that you have full movement here, but don't worry. All outside progression will be restored when you leave.<page>Your total strokes will be tallied for each course on this scoreboard and will update if you beat your best score.<page>Maybe if you get a really good score, you'll get some kind of prize!<page>Best of luck and happy golfing!");
+                }
+                else
+                {
+                    string hallString = "Welcome to MilliGolf, an 18-hole course and grand tour of Hallownest!";
+                    if (golfData.randoSettings.CourseAccess && golfData.randoSaveState.courseAccess.AnyFalse())
+                    {
+                        hallString += "<page>Not all 18 courses are open at the moment though, maybe that can change if you progress on your randomizer seed.";
+                    }
+                    hallString += "<page>You may notice that you have full movement here, but don't worry. All outside progression will be restored when you leave.";
+                    if (golfData.randoSettings.CourseCompletion)
+                    {
+                        hallString += "<page>Your total strokes will be tallied for each course on this scoreboard as soon as you find the proper checks.<page>Regardless of being able to see it or not, the strike count is kept track of and you'll get something for clearing courses too.";
+                    }
+                    else
+                    {
+                        hallString += "<page>Your total strokes will be tallied for each course on this scoreboard and will update if you beat your best score.";
+                    }
+                    hallString += "<page>Maybe if you get a really good score, you'll get some kind of prize!<page>Best of luck and happy golfing!";
+                    golfQuirrel.Add("HALL", hallString);
+                }
                 golfQuirrel.Add("DIRTMOUTH", "This is Millibelle the Banker/Thief. She will act as your golf ball and personal punching bag.<page>Try to punt her into the well with as few strokes as possible<page>When you're done (or at any time you wish), you may return to the Hall by coming back through this exit or using your dream gate.");
                 golfQuirrel.Add("HIVE", "Some courses may prove to be quite tedious for normal nail slashes.<page>In some cases, you may find that a nail art is better suited for the situation.<page>Take a look at each art and observe how their effects differ.");
                 golfQuirrel.Add("GREENPATH", "If you ever lose track of the ball or can't find the hole, single-tap your map button to switch between camera modes.<page>If you wish to start over in this room, you can single-tap your dream nail.");
@@ -829,7 +983,6 @@ namespace MilliGolf {
 
         public static void completedHole(string sceneName, int score) {
             if(!golfData.scoreboard.ContainsKey(sceneName)) {
-                //grant golf score (sceneName) check                    //Rando Integration
                 golfData.scoreboard.Add(sceneName, score);
                 pbTracker.update(score, true);
             }
@@ -880,51 +1033,75 @@ namespace MilliGolf {
         public static bool isActivelyScoring;
         public static bool isPB;
         public static int score;
+        public delegate void ScoreUpdated();
+        public static event ScoreUpdated OnScoreUpdated;
         public static void update(int score, bool pb) {
             pbTracker.score = score;
             isPB = pb;
             isActivelyScoring = true;
+
+            // Build hook for Completion item give
+            if (ModHooks.GetMod("Randomizer 4") is Mod)
+            {
+                OnScoreUpdated?.Invoke();
+            };
         }
     }
+    public class PlayerProgression {
+        public bool canDash;
+        public bool crossroadsInfected;
+        public bool defeatedMantisLords;
+        public bool hasAcidArmour;
+        public bool hasCyclone;
+        public bool hasDashSlash;
+        public bool hasDoubleJump;
+        public bool hasDreamGate;
+        public bool hasDreamNail;
+        public bool hasLantern;
+        public bool hasMap;
+        public bool hasNailArt;
+        public bool hasSuperDash;
+        public bool hasUpwardSlash;
+        public bool hasWalljump;
 
+        public T GetVariable<T>(string fieldName) {
+            var field = typeof(PlayerProgression).GetField(fieldName) ?? throw new ArgumentException($"Field '{fieldName}' not found.");
+            return (T)field.GetValue(this);
+        }
+
+        public void SetVariable<T>(string fieldName, T value) {
+            var field = typeof(PlayerProgression).GetField(fieldName) ?? throw new ArgumentException($"Field '{fieldName}' not found.");
+            field.SetValue(this, value);
+        }
+    }
     public class progressionLog {
         static PlayerData pd;
-        static bool canDash;
-        static bool crossroadsInfected;
-        static bool defeatedMantisLords;
-        static bool hasAcidArmour;
-        static bool hasCyclone;
-        static bool hasDashSlash;
-        static bool hasDoubleJump;
-        static bool hasDreamGate;
-        static bool hasDreamNail;
-        static bool hasLantern;
-        static bool hasMap;
-        static bool hasNailArt;
-        static bool hasSuperDash;
-        static bool hasUpwardSlash;
-        static bool hasWalljump;
+        static PlayerProgression pdState = new PlayerProgression();
 
         public static void logProgression() {
             pd = PlayerData.instance;
             
-            canDash = pd.canDash;
-            crossroadsInfected = pd.crossroadsInfected;
-            defeatedMantisLords = pd.defeatedMantisLords;
-            hasAcidArmour = pd.hasAcidArmour;
-            hasCyclone = pd.hasCyclone;
-            hasDashSlash = pd.hasDashSlash;
-            hasDoubleJump = pd.hasDoubleJump;
-            hasDreamGate = pd.hasDreamGate;
-            hasDreamNail = pd.hasDreamNail;
-            hasLantern = pd.hasLantern;
-            hasMap = pd.hasMap;
-            hasNailArt = pd.hasNailArt;
-            hasSuperDash = pd.hasSuperDash;
-            hasUpwardSlash = pd.hasUpwardSlash;
-            hasWalljump = pd.hasWalljump;
+            pdState.canDash = pd.canDash;
+            pdState.crossroadsInfected = pd.crossroadsInfected;
+            pdState.defeatedMantisLords = pd.defeatedMantisLords;
+            pdState.hasAcidArmour = pd.hasAcidArmour;
+            pdState.hasCyclone = pd.hasCyclone;
+            pdState.hasDashSlash = pd.hasDashSlash;
+            pdState.hasDoubleJump = pd.hasDoubleJump;
+            pdState.hasDreamGate = pd.hasDreamGate;
+            pdState.hasDreamNail = pd.hasDreamNail;
+            pdState.hasLantern = pd.hasLantern;
+            pdState.hasMap = pd.hasMap;
+            pdState.hasNailArt = pd.hasNailArt;
+            pdState.hasSuperDash = pd.hasSuperDash;
+            pdState.hasUpwardSlash = pd.hasUpwardSlash;
+            pdState.hasWalljump = pd.hasWalljump;
             
             MilliGolf.hasLoggedProgression = true;
+        }
+
+        public static void modifyLoggedProgression(Action<PlayerProgression> modifier) {
+            modifier?.Invoke(pdState); // Allows custom modifications to the logged progression
         }
 
         public static void overrideProgression() {
@@ -949,41 +1126,41 @@ namespace MilliGolf {
         public static void restoreProgression() {
             if(MilliGolf.hasLoggedProgression) {
                 pd = PlayerData.instance;
-                pd.canDash = canDash;
-                pd.crossroadsInfected = crossroadsInfected;
-                pd.defeatedMantisLords = defeatedMantisLords;
-                pd.hasAcidArmour = hasAcidArmour;
-                pd.hasCyclone = hasCyclone;
-                pd.hasDashSlash = hasDashSlash;
-                pd.hasDoubleJump = hasDoubleJump;
-                pd.hasDreamGate = hasDreamGate;
-                pd.hasDreamNail = hasDreamNail;
-                pd.hasLantern = hasLantern;
-                pd.hasMap = hasMap;
-                pd.hasNailArt = hasNailArt;
-                pd.hasSuperDash = hasSuperDash;
-                pd.hasUpwardSlash = hasUpwardSlash;
-                pd.hasWalljump = hasWalljump;
+                pd.canDash = pdState.canDash;
+                pd.crossroadsInfected = pdState.crossroadsInfected;
+                pd.defeatedMantisLords = pdState.defeatedMantisLords;
+                pd.hasAcidArmour = pdState.hasAcidArmour;
+                pd.hasCyclone = pdState.hasCyclone;
+                pd.hasDashSlash = pdState.hasDashSlash;
+                pd.hasDoubleJump = pdState.hasDoubleJump;
+                pd.hasDreamGate = pdState.hasDreamGate;
+                pd.hasDreamNail = pdState.hasDreamNail;
+                pd.hasLantern = pdState.hasLantern;
+                pd.hasMap = pdState.hasMap;
+                pd.hasNailArt = pdState.hasNailArt;
+                pd.hasSuperDash = pdState.hasSuperDash;
+                pd.hasUpwardSlash = pdState.hasUpwardSlash;
+                pd.hasWalljump = pdState.hasWalljump;
             }
         }
 
         public static void wipeProgression() {
             pd = PlayerData.instance;
-            pd.canDash = canDash = false;
-            pd.crossroadsInfected = crossroadsInfected = false;
-            pd.defeatedMantisLords = defeatedMantisLords = false;
-            pd.hasAcidArmour = hasAcidArmour = false;
-            pd.hasCyclone = hasCyclone = false;
-            pd.hasDashSlash = hasDashSlash = false;
-            pd.hasDoubleJump = hasDoubleJump = false;
-            pd.hasDreamGate = hasDreamGate = false;
-            pd.hasDreamNail = hasDreamNail = false;
-            pd.hasLantern = hasLantern = false;
-            pd.hasMap = hasMap = false;
-            pd.hasNailArt = hasNailArt = false;
-            pd.hasSuperDash = hasSuperDash = false;
-            pd.hasUpwardSlash = hasUpwardSlash = false;
-            pd.hasWalljump = hasWalljump = false;
+            pd.canDash = pdState.canDash = false;
+            pd.crossroadsInfected = pdState.crossroadsInfected = false;
+            pd.defeatedMantisLords = pdState.defeatedMantisLords = false;
+            pd.hasAcidArmour = pdState.hasAcidArmour = false;
+            pd.hasCyclone = pdState.hasCyclone = false;
+            pd.hasDashSlash = pdState.hasDashSlash = false;
+            pd.hasDoubleJump = pdState.hasDoubleJump = false;
+            pd.hasDreamGate = pdState.hasDreamGate = false;
+            pd.hasDreamNail = pdState.hasDreamNail = false;
+            pd.hasLantern = pdState.hasLantern = false;
+            pd.hasMap = pdState.hasMap = false;
+            pd.hasNailArt = pdState.hasNailArt = false;
+            pd.hasSuperDash = pdState.hasSuperDash = false;
+            pd.hasUpwardSlash = pdState.hasUpwardSlash = false;
+            pd.hasWalljump = pdState.hasWalljump = false;
         }
     }
 
@@ -1307,5 +1484,7 @@ namespace MilliGolf {
 
     public class LocalGolfSettings {
         public Dictionary<string, int> scoreboard = new();
+        public GolfRandoSettings randoSettings = new();
+        public RandoSaveState randoSaveState = new();
     }
 }

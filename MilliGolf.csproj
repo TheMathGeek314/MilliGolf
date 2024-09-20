@@ -3,7 +3,7 @@
     <!-- Change this to the path of your modded HK installation -->
     <HollowKnightRefs>C:\Program Files (x86)\Steam\steamapps\common\Hollow Knight\hollow_knight_Data\Managed\</HollowKnightRefs>
     <!-- Change this to the path where you want the ready-to-upload exports to be -->
-    <ExportDir>D:\Hollow Knight Mods\_exports\</ExportDir>
+    <ExportDir>C:\Program Files (x86)\Steam\steamapps\common\Hollow Knight\hollow_knight_Data\Managed\Mods\</ExportDir>
     <!-- Uncomment this to generate a documentation file to be included with the mod -->
     <!--<DocumentationFile>$(OutputPath)/$(AssemblyTitle).xml</DocumentationFile>-->
   </PropertyGroup>
@@ -61,6 +61,12 @@
     <Reference Include="GalaxyCSharp">
       <HintPath>$(HollowKnightRefs)/GalaxyCSharp.dll</HintPath>
     </Reference>
+    <Reference Include="ItemChanger">
+      <HintPath>..\_dependencies\ItemChanger.dll</HintPath>
+    </Reference>
+    <Reference Include="MenuChanger">
+      <HintPath>..\_dependencies\MenuChanger.dll</HintPath>
+    </Reference>
     <Reference Include="MMHOOK_Assembly-CSharp">
       <HintPath>$(HollowKnightRefs)/MMHOOK_Assembly-CSharp.dll</HintPath>
     </Reference>
@@ -87,6 +93,15 @@
     </Reference>
     <Reference Include="PlayMaker">
       <HintPath>$(HollowKnightRefs)/PlayMaker.dll</HintPath>
+    </Reference>
+    <Reference Include="RandomizerCore">
+      <HintPath>..\_dependencies\RandomizerCore.dll</HintPath>
+    </Reference>
+    <Reference Include="RandomizerMod">
+      <HintPath>..\_dependencies\RandomizerMod.dll</HintPath>
+    </Reference>
+    <Reference Include="RandoSettingsManager">
+      <HintPath>..\_dependencies\RandoSettingsManager.dll</HintPath>
     </Reference>
     <Reference Include="Satchel">
       <HintPath>..\_dependencies\Satchel.dll</HintPath>

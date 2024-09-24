@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.IO;
-using System.Reflection;
+﻿using GlobalEnums;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -15,6 +11,10 @@ using uuiText = UnityEngine.UI.Text;
 using MilliGolf.Rando.Manager;
 using MilliGolf.Rando.Settings;
 using MilliGolf.Rando.Interop;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
 
 namespace MilliGolf {
     public class MilliGolf: Mod, ILocalSettings<LocalGolfSettings>, IGlobalSettings<GolfRandoSettings> {
@@ -54,7 +54,6 @@ namespace MilliGolf {
         }
         new public string GetName() => "MilliGolf";
         public override string GetVersion() => "1.2.0.0";
-
         public static LocalGolfSettings golfData { get; set; } = new();
         public void OnLoadLocal(LocalGolfSettings g) => golfData = g;
         public LocalGolfSettings OnSaveLocal() => golfData;
@@ -63,18 +62,36 @@ namespace MilliGolf {
         public GolfRandoSettings OnSaveGlobal() => GS;
         public delegate void BoardCheck(int score);
         public static event BoardCheck OnBoardCheck;
-
+        public delegate string AttunedPreview(string currentDialogue);
+        public static event AttunedPreview OnAttunedPreview;
+        public delegate string AscendedPreview(string currentDialogue);
+        public static event AscendedPreview OnAscendedPreview;
+        public delegate string RadiantPreview(string currentDialogue);
+        public static event RadiantPreview OnRadiantPreview;
+        public delegate string MasterPreview(string currentDialogue);
+        public static event MasterPreview OnMasterPreview;
+        public delegate string GrandmasterPreview(string currentDialogue);
+        public static event GrandmasterPreview OnGrandmasterPreview;
         public override void Initialize(Dictionary<string, Dictionary<string, GameObject>> preloadedObjects) {
             UnityEngine.SceneManagement.SceneManager.activeSceneChanged += earlySceneChange;
             On.GameManager.OnNextLevelReady += lateSceneChange;
             On.PlayMakerFSM.OnEnable += editFSM;
             On.BossSummaryBoard.Show += locationCheck;
-            On.PlayerData.SetBool += preserveProgression;
             ModHooks.TakeHealthHook += takeHealth;
             ModHooks.NewGameHook += onNewGameSetup;
             ModHooks.SavegameLoadHook += onSaveLoadSetup;
             ModHooks.BeforeSceneLoadHook += onBeforeSceneLoad;
-            On.UIManager.ReturnToMainMenu += onReturnToMainMenu;
+
+            // Check skill availability
+            ModHooks.GetPlayerBoolHook += BoolOverride;
+            On.HeroController.CanDash += DashOverride;
+            On.HeroController.CanWallJump += ClawOverride;
+            On.HeroController.CanWallSlide += ClawOverride2;
+            On.HeroController.LookForInput += ClawOverride3; // Really? Does it have to get THIS hacky?
+            On.HeroController.CanSuperDash += CDashOverride;
+            On.HeroController.CanDreamNail += DreamNailOverride;
+            On.HeroController.CanDreamGate += DreamGateOverride;
+            On.HeroController.CanDoubleJump += WingsOverride;
 
             CameraMods.Initialize();
 
@@ -100,13 +117,244 @@ namespace MilliGolf {
             }
         }
 
-        private void preserveProgression(On.PlayerData.orig_SetBool orig, PlayerData self, string boolName, bool value)
+        private bool DreamGateOverride(On.HeroController.orig_CanDreamGate orig, HeroController self)
         {
-            try
+            bool boolLessDGate = (
+                !GameManager.instance.isPaused && 
+                self.hero_state != ActorStates.no_input && 
+                !self.cState.dashing && 
+                !self.cState.backDashing && 
+                (!self.cState.attacking || !(ReflectionHelper.GetField<HeroController, float>(self, "attack_time") <
+                                             ReflectionHelper.GetField<HeroController, float>(self, "ATTACK_RECOVERY_TIME"))) && 
+                !self.controlReqlinquished && 
+                !self.cState.hazardDeath && 
+                !self.cState.hazardRespawning && 
+                !self.cState.recoilFrozen && 
+                !self.cState.recoiling && 
+                !self.cState.transitioning && 
+                self.cState.onGround
+            );
+
+            return orig(self) || (boolLessDGate && isInGolfRoom);
+        }
+
+        private bool DreamNailOverride(On.HeroController.orig_CanDreamNail orig, HeroController self)
+        {
+            bool boolLessDNail = (
+                !GameManager.instance.isPaused && 
+                self.hero_state != ActorStates.no_input && 
+                !self.cState.dashing && 
+                !self.cState.backDashing && 
+                (!self.cState.attacking || !(ReflectionHelper.GetField<HeroController, float>(self, "attack_time") <
+                                             ReflectionHelper.GetField<HeroController, float>(self, "ATTACK_RECOVERY_TIME"))) && 
+                !self.controlReqlinquished && 
+                !self.cState.hazardDeath && 
+                !self.cState.hazardRespawning && 
+                !self.cState.recoilFrozen && 
+                !self.cState.recoiling && 
+                !self.cState.transitioning && 
+                self.cState.onGround
+            );
+
+            return orig(self) || (boolLessDNail && isInGolfRoom);
+        }
+
+        private void NailOverride2(On.HeroController.orig_DoAttack orig, HeroController self)
+        {
+            orig(self);
+        }
+
+        private bool BoolOverride(string name, bool orig)
+        {
+            List<string> overriden = [
+                "hasMap",
+                "hasNailArt"
+            ];
+            if (name == "crossroadsInfected")
             {
-            progressionLog.modifyLoggedProgression(prog => prog.SetVariable(boolName, value)); // If progression is obtained inside the courses, keep it when leaving.
-            } catch (ArgumentException) {}
-            orig(self, boolName, value);
+                return orig && !isInGolfRoom;
+            }
+            if(overriden.Contains(name))
+            {
+                return orig || isInGolfRoom;
+            }
+            return orig;
+        }
+
+        private bool NailOverride(On.HeroController.orig_CanAttack orig, HeroController self)
+        {
+            bool boolLessNail = (
+                ReflectionHelper.GetField<HeroController, float>(self, "attack_cooldown") <= 0f && 
+                !self.cState.attacking && 
+                !self.cState.dashing && 
+                !self.cState.dead && 
+                !self.cState.hazardDeath && 
+                !self.cState.hazardRespawning && 
+                !self.controlReqlinquished && 
+                self.hero_state != ActorStates.no_input && 
+                self.hero_state != ActorStates.hard_landing && 
+                self.hero_state != ActorStates.dash_landing
+                );
+            
+            if (boolLessNail && isInGolfRoom)
+            {
+                return true;
+            }
+            else
+            {
+                return orig(self);
+            }
+        }
+        private bool WingsOverride(On.HeroController.orig_CanDoubleJump orig, HeroController self)
+        {
+            bool boolessWings = (
+                !self.controlReqlinquished && 
+                !ReflectionHelper.GetField<HeroController, bool>(self, "doubleJumped") && 
+                !ReflectionHelper.GetField<HeroController, bool>(self, "inAcid") && 
+                self.hero_state != ActorStates.no_input && 
+                self.hero_state != ActorStates.hard_landing && 
+                self.hero_state != ActorStates.dash_landing && 
+                !self.cState.dashing && !self.cState.wallSliding && 
+                !self.cState.backDashing && 
+                !self.cState.attacking && 
+                !self.cState.bouncing && 
+                !self.cState.shroomBouncing && 
+                !self.cState.onGround
+                );
+
+            return orig(self) || (boolessWings && isInGolfRoom);
+        }
+
+        private bool CDashOverride(On.HeroController.orig_CanSuperDash orig, HeroController self)
+        {
+            bool boolessCDash = (
+                !GameManager._instance.isPaused && 
+                self.hero_state != ActorStates.no_input && 
+                !self.cState.dashing && 
+                !self.cState.hazardDeath && 
+                !self.cState.hazardRespawning && 
+                !self.cState.backDashing && 
+                (!self.cState.attacking || !(ReflectionHelper.GetField<HeroController, float>(self, "attack_time") <
+                                             ReflectionHelper.GetField<HeroController, float>(self, "ATTACK_RECOVERY_TIME"))) &&
+                !self.cState.slidingLeft && 
+                !self.cState.slidingRight && 
+                !self.controlReqlinquished && 
+                !self.cState.recoilFrozen && 
+                !self.cState.recoiling && 
+                !self.cState.transitioning && 
+                (self.cState.onGround || self.cState.wallSliding)
+            );
+            return orig(self) || (boolessCDash && isInGolfRoom);
+        }
+
+        private bool ClawOverride(On.HeroController.orig_CanWallJump orig, HeroController self)
+        {
+            if (isInGolfRoom)
+            {
+                if (self.cState.touchingNonSlider)
+                {
+                    return false;
+                }
+
+                if (self.cState.wallSliding)
+                {
+                    return true;
+                }
+
+                if (self.cState.touchingWall && !self.cState.onGround)
+                {
+                    return true;
+                }
+
+                return false;
+            }
+            return orig(self);
+        }
+
+        private bool ClawOverride2(On.HeroController.orig_CanWallSlide orig, HeroController self)
+        {
+            bool canSlide = (
+                (self.cState.wallSliding && GameManager._instance.isPaused) || 
+                !self.cState.touchingNonSlider && 
+                !ReflectionHelper.GetField<HeroController, bool>(self, "inAcid") && 
+                !self.cState.dashing && 
+                !self.cState.onGround && 
+                !self.cState.recoiling && 
+                !GameManager._instance.isPaused && 
+                !self.controlReqlinquished && 
+                !self.cState.transitioning && 
+                (self.cState.falling || self.cState.wallSliding) && 
+                !self.cState.doubleJumping && 
+                self.CanInput()
+                );
+            
+            return orig(self) || (canSlide && isInGolfRoom);
+        }
+
+        private void ClawOverride3(On.HeroController.orig_LookForInput orig, HeroController self)
+        {
+            orig(self);
+
+            bool canSlide = (
+                (self.cState.wallSliding && GameManager._instance.isPaused) || 
+                !self.cState.touchingNonSlider && 
+                !ReflectionHelper.GetField<HeroController, bool>(self, "inAcid") && 
+                !self.cState.dashing && 
+                !self.cState.onGround && 
+                !self.cState.recoiling && 
+                (PlayerData.instance.GetBool("hasWalljump") || isInGolfRoom) &&
+                !GameManager._instance.isPaused && 
+                !self.controlReqlinquished && 
+                !self.cState.transitioning && 
+                (self.cState.falling || self.cState.wallSliding) && 
+                !self.cState.doubleJumping && 
+                self.CanInput()
+                );
+
+            if (canSlide && !self.cState.attacking)
+            {
+                if (self.touchingWallL && InputHandler.Instance.inputActions.left.IsPressed && !self.cState.wallSliding)
+                {
+                    ReflectionHelper.SetFieldSafe(self, "airDashed", false);
+                    ReflectionHelper.SetFieldSafe(self, "doubleJumped", false);
+                    self.wallSlideVibrationPlayer.Play();
+                    self.cState.wallSliding = true;
+                    self.cState.willHardLand = false;
+                    self.wallSlidingL = true;
+                    self.wallSlidingR = false;
+                    self.FaceLeft();
+                }
+
+                if (self.touchingWallR && InputHandler.Instance.inputActions.right.IsPressed && !self.cState.wallSliding)
+                {
+                    ReflectionHelper.SetFieldSafe(self, "airDashed", false);
+                    ReflectionHelper.SetFieldSafe(self, "doubleJumped", false);
+                    self.wallSlideVibrationPlayer.Play();
+                    self.cState.wallSliding = true;
+                    self.cState.willHardLand = false;
+                    self.wallSlidingL = false;
+                    self.wallSlidingR = true;
+                    self.FaceRight();
+                }
+            }
+        }
+
+        private bool DashOverride(On.HeroController.orig_CanDash orig, HeroController self)
+        {
+            bool boolessDash = (
+                self.hero_state != ActorStates.no_input &&
+                self.hero_state != ActorStates.hard_landing &&
+                self.hero_state != ActorStates.dash_landing &&
+                ReflectionHelper.GetField<HeroController, float>(self, "dashCooldownTimer") <= 0 &&
+                !self.cState.dashing &&
+                !self.cState.backDashing &&
+                (!self.cState.attacking || !(ReflectionHelper.GetField<HeroController, float>(self, "attack_time") <
+                                             ReflectionHelper.GetField<HeroController, float>(self, "ATTACK_RECOVERY_TIME"))) &&
+                !self.cState.preventDash &&
+                (self.cState.onGround || !ReflectionHelper.GetField<HeroController, bool>(self, "airDashed") || self.cState.wallSliding) &&
+                !self.cState.hazardDeath
+                );
+            return orig(self) || (boolessDash && isInGolfRoom);
         }
 
         public override List<(string, string)> GetPreloadNames() {
@@ -131,16 +379,10 @@ namespace MilliGolf {
             GolfManager.SaveSettings.randoSettings.CourseCompletion = GolfManager.GlobalSettings.CourseCompletion;
             GolfManager.SaveSettings.randoSettings.GlobalGoals = GolfManager.GlobalSettings.GlobalGoals;
             startGameSetup();
-            progressionLog.wipeProgression();
         }
 
         private void onSaveLoadSetup(int obj) {
             startGameSetup();
-        }
-
-        private IEnumerator onReturnToMainMenu(On.UIManager.orig_ReturnToMainMenu orig, UIManager self) {
-            progressionLog.restoreProgression();
-            yield return orig(self);
         }
 
         private void startGameSetup() {
@@ -226,6 +468,20 @@ namespace MilliGolf {
                 resetState.AddTransition("FINISHED", "Charge Cancel");
                 resetState.AddAction(new golfQuickReset());
             }
+            else if(self.gameObject.name == "Knight" && self.FsmName == "Nail Arts")
+            {
+                isGolfingBool isGolfingSet = new();
+                isGolfingSet.isTrue = FsmEvent.GetFsmEvent("GOLFING");
+                
+                self.AddFirstAction("Has Dash?", isGolfingSet);
+                self.AddTransition("Has Dash?", "GOLFING", "Dash Slash Ready");
+
+                self.AddFirstAction("Has Cyclone?", isGolfingSet);
+                self.AddTransition("Has Cyclone?", "GOLFING", "Flash");
+
+                self.AddFirstAction("Has G Slash?", isGolfingSet);
+                self.AddTransition("Has G Slash?", "GOLFING", "Flash 2");
+            }
             else if(self.gameObject.name == "Area Title" && self.FsmName == "Area Title Control") {
                 areaTitleRef = self;
                 self.GetState("Visited Check").InsertAction(new pbVisitedCheck(), 0);
@@ -239,7 +495,6 @@ namespace MilliGolf {
                 HeroController.instance.gameObject.FindGameObjectInChildren("Vignette").SetActive(true);
             }
             if(!doCustomLoad && wasInCustomRoom) {
-                progressionLog.restoreProgression();
                 wasInCustomRoom = false;
             }
             return arg;
@@ -258,7 +513,6 @@ namespace MilliGolf {
                         FsmState changeSceneState = doorControlFSM.GetState("Change Scene");
                         ((BeginSceneTransition)changeSceneState.GetAction(1)).sceneName = "GG_Workshop";
                         changeSceneState.InsertAction(new setCustomLoad(true), 1);
-                        changeSceneState.InsertAction(new logProgression(), 2);
                         GameObject golfTent = GameObject.Instantiate(prefabs["Town"]["divine_tent"], new Vector3(205.1346f, 13.1462f, 47.2968f), Quaternion.identity);
                         setupTentPrefab(golfTent);
                         golfTent.GetComponent<PlayMakerFSM>().enabled = false;
@@ -279,6 +533,7 @@ namespace MilliGolf {
             ballCam = 0;
             isStubbornLocked = false;
             if(doCustomLoad) {
+                addDialogue();
                 wasInCustomRoom = true;
                 if(golfScene.courseList.Contains(self.sceneName)) {
                     isInGolfRoom = true;
@@ -395,7 +650,6 @@ namespace MilliGolf {
                 else if(self.sceneName == "GG_Workshop") {
                     isInGolfRoom = true;
                     calculateTotalScore();
-                    progressionLog.overrideProgression();
                     BossStatue[] statues = GameObject.FindObjectsOfType<BossStatue>();
                     foreach(BossStatue bs in statues) {
                         bs.gameObject.SetActive(false);
@@ -425,7 +679,6 @@ namespace MilliGolf {
                     workshopExit.targetScene = "Town";
                     workshopExit.entryPoint = "room_divine(Clone)(Clone)";
                     workshopExit.OnBeforeTransition += setCustomLoad.setCustomLoadFalse;
-                    workshopExit.OnBeforeTransition += progressionLog.restoreProgression;
                 }
             }
             doCustomLoad = false;
@@ -713,6 +966,10 @@ namespace MilliGolf {
                     }
                 }
                 outputText = "GRANDMASTER\r\nCongratulations, you have achieved an an extraordinary score and can officially consider yourself a God Gamer.<page>(No affiliation with fireb0rn and his academy)";
+                if (golfData.randoSettings.GlobalGoals == MaxTier.Grandmaster && golfData.randoSaveState.globalGoals < 5)
+                {
+                    outputText += $"<page>...Is what you will be told if you ever get to do all courses in {golfMilestones.Grandmaster} hits or less, that is.";
+                }
             }
             else if((!masterRando && score <= golfMilestones.Master) || (masterRando && golfData.randoSaveState.globalGoals >= 4)) {
                 knight1.SetActive(false);
@@ -726,15 +983,28 @@ namespace MilliGolf {
                         child.SetActive(false);
                     }
                 }
-                outputText = "MASTER\r\nWell done achieving such an impressive score! You've come so far, but there's one more level to reach!<page>" + (score-golfMilestones.Grandmaster) + " away from Grandmaster";
+                outputText = "MASTER\r\nWell done achieving such an impressive score! You've come so far, but there's one more level to reach!";
+                if (golfData.randoSettings.GlobalGoals >= MaxTier.Master && golfData.randoSaveState.globalGoals < 4)
+                {
+                    outputText += $"<page>...Is what you will be told if you ever get to do all courses in {golfMilestones.Grandmaster} hits or less, that is.";
+                }
             }
             else {
                 knight1.SetActive(true);
                 knight2.SetActive(false);
                 knight3.SetActive(false);
                 knightWithFsm = knight1;
-                outputText = "EXPERT\r\nNice job reaching Radiant!<page>" + (score-golfMilestones.Master) + " away from Master";
+                outputText = "EXPERT\r\nNice job reaching Radiant!";
+                if (golfData.randoSettings.GlobalGoals >= MaxTier.Master && golfData.randoSaveState.globalGoals < 3)
+                {
+                    outputText += $"<page>...Is what you will be told if you ever get to do all courses in {golfMilestones.Expert} hits or less, that is.";
+                }
             }
+            outputText = OnAttunedPreview.Invoke(outputText);
+            outputText = OnAscendedPreview.Invoke(outputText);
+            outputText = OnRadiantPreview.Invoke(outputText);
+            outputText = OnMasterPreview.Invoke(outputText);
+            outputText = OnGrandmasterPreview.Invoke(outputText);
             statueBase.SetActive(true);
             PlayMakerFSM convo = PlayMakerFSM.FindFsmOnGameObject(knightWithFsm.FindGameObjectInChildren("Interact"), "Conversation Control");
             CallMethodProper callAction = (CallMethodProper)convo.GetState("Greet").Actions[1];
@@ -915,7 +1185,11 @@ namespace MilliGolf {
         private void addDialogue() {
             FieldInfo field = typeof(Language.Language).GetField("currentEntrySheets", BindingFlags.NonPublic | BindingFlags.Static);
             Dictionary<string, Dictionary<string, string>> currentEntrySheets = (Dictionary<string, Dictionary<string, string>>)field.GetValue(null);
-            if(!currentEntrySheets.ContainsKey("GolfQuirrel")) {
+            {
+                if(currentEntrySheets.ContainsKey("GolfQuirrel"))
+                {
+                    currentEntrySheets.Remove("GolfQuirrel");
+                }
                 Dictionary<string, string> golfQuirrel = new();
                 
                 // Quirrel having a slightly different dialogue depending on rando settings felt like a nice touch
@@ -939,7 +1213,19 @@ namespace MilliGolf {
                     {
                         hallString += "<page>Your total strokes will be tallied for each course on this scoreboard and will update if you beat your best score.";
                     }
-                    hallString += "<page>Maybe if you get a really good score, you'll get some kind of prize!<page>Best of luck and happy golfing!";
+                    if (golfData.randoSettings.GlobalGoals > MaxTier.None)
+                    {
+                        hallString = OnAttunedPreview?.Invoke(hallString);
+                        hallString = OnAscendedPreview?.Invoke(hallString);
+                        hallString = OnRadiantPreview?.Invoke(hallString);
+                        hallString = OnMasterPreview?.Invoke(hallString);
+                        hallString = OnGrandmasterPreview?.Invoke(hallString);
+                    }
+                    else
+                    {
+                        hallString += "<page>Maybe if you get a really good score, you'll get some kind of prize!";
+                    }
+                    hallString += "<page>Best of luck and happy golfing!";
                     golfQuirrel.Add("HALL", hallString);
                 }
                 golfQuirrel.Add("DIRTMOUTH", "This is Millibelle the Banker/Thief. She will act as your golf ball and personal punching bag.<page>Try to punt her into the well with as few strokes as possible<page>When you're done (or at any time you wish), you may return to the Hall by coming back through this exit or using your dream gate.");
@@ -1047,130 +1333,6 @@ namespace MilliGolf {
             };
         }
     }
-    public class PlayerProgression {
-        public bool canDash;
-        public bool crossroadsInfected;
-        public bool defeatedMantisLords;
-        public bool hasAcidArmour;
-        public bool hasCyclone;
-        public bool hasDashSlash;
-        public bool hasDoubleJump;
-        public bool hasDreamGate;
-        public bool hasDreamNail;
-        public bool hasLantern;
-        public bool hasMap;
-        public bool hasNailArt;
-        public bool hasSuperDash;
-        public bool hasUpwardSlash;
-        public bool hasWalljump;
-
-        public T GetVariable<T>(string fieldName) {
-            var field = typeof(PlayerProgression).GetField(fieldName) ?? throw new ArgumentException($"Field '{fieldName}' not found.");
-            return (T)field.GetValue(this);
-        }
-
-        public void SetVariable<T>(string fieldName, T value) {
-            var field = typeof(PlayerProgression).GetField(fieldName) ?? throw new ArgumentException($"Field '{fieldName}' not found.");
-            field.SetValue(this, value);
-        }
-    }
-    public class progressionLog {
-        static PlayerData pd;
-        static PlayerProgression pdState = new PlayerProgression();
-
-        public static void logProgression() {
-            pd = PlayerData.instance;
-            
-            pdState.canDash = pd.canDash;
-            pdState.crossroadsInfected = pd.crossroadsInfected;
-            pdState.defeatedMantisLords = pd.defeatedMantisLords;
-            pdState.hasAcidArmour = pd.hasAcidArmour;
-            pdState.hasCyclone = pd.hasCyclone;
-            pdState.hasDashSlash = pd.hasDashSlash;
-            pdState.hasDoubleJump = pd.hasDoubleJump;
-            pdState.hasDreamGate = pd.hasDreamGate;
-            pdState.hasDreamNail = pd.hasDreamNail;
-            pdState.hasLantern = pd.hasLantern;
-            pdState.hasMap = pd.hasMap;
-            pdState.hasNailArt = pd.hasNailArt;
-            pdState.hasSuperDash = pd.hasSuperDash;
-            pdState.hasUpwardSlash = pd.hasUpwardSlash;
-            pdState.hasWalljump = pd.hasWalljump;
-            
-            MilliGolf.hasLoggedProgression = true;
-        }
-
-        public static void modifyLoggedProgression(Action<PlayerProgression> modifier) {
-            modifier?.Invoke(pdState); // Allows custom modifications to the logged progression
-        }
-
-        public static void overrideProgression() {
-            pd = PlayerData.instance;
-            pd.canDash = true;
-            pd.crossroadsInfected = false;
-            pd.defeatedMantisLords = false;
-            pd.hasAcidArmour = true;
-            pd.hasCyclone = true;
-            pd.hasDashSlash = true;
-            pd.hasDoubleJump = true;
-            pd.hasDreamGate = true;
-            pd.hasDreamNail = true;
-            pd.hasLantern = false;
-            pd.hasMap = true;
-            pd.hasNailArt = true;
-            pd.hasSuperDash = true;
-            pd.hasUpwardSlash = true;
-            pd.hasWalljump = true;
-        }
-
-        public static void restoreProgression() {
-            if(MilliGolf.hasLoggedProgression) {
-                pd = PlayerData.instance;
-                pd.canDash = pdState.canDash;
-                pd.crossroadsInfected = pdState.crossroadsInfected;
-                pd.defeatedMantisLords = pdState.defeatedMantisLords;
-                pd.hasAcidArmour = pdState.hasAcidArmour;
-                pd.hasCyclone = pdState.hasCyclone;
-                pd.hasDashSlash = pdState.hasDashSlash;
-                pd.hasDoubleJump = pdState.hasDoubleJump;
-                pd.hasDreamGate = pdState.hasDreamGate;
-                pd.hasDreamNail = pdState.hasDreamNail;
-                pd.hasLantern = pdState.hasLantern;
-                pd.hasMap = pdState.hasMap;
-                pd.hasNailArt = pdState.hasNailArt;
-                pd.hasSuperDash = pdState.hasSuperDash;
-                pd.hasUpwardSlash = pdState.hasUpwardSlash;
-                pd.hasWalljump = pdState.hasWalljump;
-            }
-        }
-
-        public static void wipeProgression() {
-            pd = PlayerData.instance;
-            pd.canDash = pdState.canDash = false;
-            pd.crossroadsInfected = pdState.crossroadsInfected = false;
-            pd.defeatedMantisLords = pdState.defeatedMantisLords = false;
-            pd.hasAcidArmour = pdState.hasAcidArmour = false;
-            pd.hasCyclone = pdState.hasCyclone = false;
-            pd.hasDashSlash = pdState.hasDashSlash = false;
-            pd.hasDoubleJump = pdState.hasDoubleJump = false;
-            pd.hasDreamGate = pdState.hasDreamGate = false;
-            pd.hasDreamNail = pdState.hasDreamNail = false;
-            pd.hasLantern = pdState.hasLantern = false;
-            pd.hasMap = pdState.hasMap = false;
-            pd.hasNailArt = pdState.hasNailArt = false;
-            pd.hasSuperDash = pdState.hasSuperDash = false;
-            pd.hasUpwardSlash = pdState.hasUpwardSlash = false;
-            pd.hasWalljump = pdState.hasWalljump = false;
-        }
-    }
-
-    public class logProgression: FsmStateAction {
-        public override void OnEnter() {
-            progressionLog.logProgression();
-            Finish();
-        }
-    }
-
     public class renameEnterLabel: FsmStateAction {
         PlayMakerFSM self;
         public string newName;

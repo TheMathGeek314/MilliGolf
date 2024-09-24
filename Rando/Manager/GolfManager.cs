@@ -45,6 +45,5 @@ namespace MilliGolf.Rando.Manager
             RandomizerMod.RandomizerData.JsonUtil._js.Serialize(jtw, GlobalSettings);
             tw.WriteLine();
         }
-
     }
 }

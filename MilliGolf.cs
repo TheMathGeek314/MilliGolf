@@ -122,12 +122,10 @@ namespace MilliGolf {
                 Events.OnEnterGame += ICHooks;
                 Events.AfterStartNewGame += ICHooks;
             }
-            Log("Standard Hooks loaded");
         }
 
         private void ICHooks()
         {
-            Log("IC Hooks loaded");
             SplitNail splitNail = ItemChangerMod.Modules.Get<SplitNail>();
             SplitCloak splitDash = ItemChangerMod.Modules.Get<SplitCloak>();
             if (splitNail is not null)
@@ -136,13 +134,11 @@ namespace MilliGolf {
                 On.HeroController.DoAttack -= NailOverride2;
                 On.HeroController.CanAttack += NailOverride;
                 On.HeroController.DoAttack += NailOverride2; // Yes, it does need to get THIS hacky.
-                Log("Nail Hooks loaded");
             }
             if (splitDash is not null)
             {
                 On.HeroController.CanDash -= DashOverride;
                 On.HeroController.CanDash += DashOverride;
-                Log("Dash Hooks loaded");
             }
         }
 

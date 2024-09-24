@@ -15,6 +15,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using ItemChanger;
+using ItemChanger.Modules;
+using RandomizerMod.IC;
 
 namespace MilliGolf {
     public class MilliGolf: Mod, ILocalSettings<LocalGolfSettings>, IGlobalSettings<GolfRandoSettings> {
@@ -62,15 +65,15 @@ namespace MilliGolf {
         public GolfRandoSettings OnSaveGlobal() => GS;
         public delegate void BoardCheck(int score);
         public static event BoardCheck OnBoardCheck;
-        public delegate string AttunedPreview(string currentDialogue);
+        public delegate string AttunedPreview();
         public static event AttunedPreview OnAttunedPreview;
-        public delegate string AscendedPreview(string currentDialogue);
+        public delegate string AscendedPreview();
         public static event AscendedPreview OnAscendedPreview;
-        public delegate string RadiantPreview(string currentDialogue);
+        public delegate string RadiantPreview();
         public static event RadiantPreview OnRadiantPreview;
-        public delegate string MasterPreview(string currentDialogue);
+        public delegate string MasterPreview();
         public static event MasterPreview OnMasterPreview;
-        public delegate string GrandmasterPreview(string currentDialogue);
+        public delegate string GrandmasterPreview();
         public static event GrandmasterPreview OnGrandmasterPreview;
         public override void Initialize(Dictionary<string, Dictionary<string, GameObject>> preloadedObjects) {
             UnityEngine.SceneManagement.SceneManager.activeSceneChanged += earlySceneChange;
@@ -80,18 +83,7 @@ namespace MilliGolf {
             ModHooks.TakeHealthHook += takeHealth;
             ModHooks.NewGameHook += onNewGameSetup;
             ModHooks.SavegameLoadHook += onSaveLoadSetup;
-            ModHooks.BeforeSceneLoadHook += onBeforeSceneLoad;
-
-            // Check skill availability
-            ModHooks.GetPlayerBoolHook += BoolOverride;
-            On.HeroController.CanDash += DashOverride;
-            On.HeroController.CanWallJump += ClawOverride;
-            On.HeroController.CanWallSlide += ClawOverride2;
-            On.HeroController.LookForInput += ClawOverride3; // Really? Does it have to get THIS hacky?
-            On.HeroController.CanSuperDash += CDashOverride;
-            On.HeroController.CanDreamNail += DreamNailOverride;
-            On.HeroController.CanDreamGate += DreamGateOverride;
-            On.HeroController.CanDoubleJump += WingsOverride;
+            ModHooks.BeforeSceneLoadHook += onBeforeSceneLoad;           
 
             CameraMods.Initialize();
 
@@ -115,6 +107,65 @@ namespace MilliGolf {
                     RSM_Interop.Hook();
                 }
             }
+
+            ModHooks.GetPlayerBoolHook += BoolOverride;
+            On.HeroController.CanDash += DashOverride;
+            On.HeroController.CanWallJump += ClawOverride;
+            On.HeroController.CanWallSlide += ClawOverride2;
+            On.HeroController.LookForInput += ClawOverride3; // Really? Does it have to get THIS hacky?
+            On.HeroController.CanSuperDash += CDashOverride;
+            On.HeroController.CanDreamNail += DreamNailOverride;
+            //On.HeroController.CanDreamGate += DreamGateOverride;
+            On.HeroController.CanDoubleJump += WingsOverride;
+            if (ModHooks.GetMod("ItemChangerMod") is Mod)
+            {
+                Events.OnEnterGame += ICHooks;
+                Events.AfterStartNewGame += ICHooks;
+            }
+            Log("Standard Hooks loaded");
+        }
+
+        private void ICHooks()
+        {
+            Log("IC Hooks loaded");
+            SplitNail splitNail = ItemChangerMod.Modules.Get<SplitNail>();
+            SplitCloak splitDash = ItemChangerMod.Modules.Get<SplitCloak>();
+            if (splitNail is not null)
+            {
+                On.HeroController.CanAttack -= NailOverride;
+                On.HeroController.DoAttack -= NailOverride2;
+                On.HeroController.CanAttack += NailOverride;
+                On.HeroController.DoAttack += NailOverride2; // Yes, it does need to get THIS hacky.
+                Log("Nail Hooks loaded");
+            }
+            if (splitDash is not null)
+            {
+                On.HeroController.CanDash -= DashOverride;
+                On.HeroController.CanDash += DashOverride;
+                Log("Dash Hooks loaded");
+            }
+        }
+
+        private bool DreamNailOverride(On.HeroController.orig_CanDreamNail orig, HeroController self)
+        {
+            bool boolLessDNail = (
+                !GameManager.instance.isPaused && 
+                self.hero_state != ActorStates.no_input && 
+                !self.cState.dashing && 
+                !self.cState.backDashing && 
+                (!self.cState.attacking || !(ReflectionHelper.GetField<HeroController, float>(self, "attack_time") <
+                                             ReflectionHelper.GetField<HeroController, float>(self, "ATTACK_RECOVERY_TIME"))) && 
+                !self.controlReqlinquished && 
+                !self.cState.hazardDeath && 
+                !self.cState.hazardRespawning && 
+                self.GetComponent<Rigidbody2D>().velocity.y > -0.1f &&
+                !self.cState.recoilFrozen && 
+                !self.cState.recoiling && 
+                !self.cState.transitioning && 
+                self.cState.onGround
+            );
+
+            return orig(self) || (boolLessDNail && isInGolfRoom);
         }
 
         private bool DreamGateOverride(On.HeroController.orig_CanDreamGate orig, HeroController self)
@@ -138,30 +189,48 @@ namespace MilliGolf {
             return orig(self) || (boolLessDGate && isInGolfRoom);
         }
 
-        private bool DreamNailOverride(On.HeroController.orig_CanDreamNail orig, HeroController self)
-        {
-            bool boolLessDNail = (
-                !GameManager.instance.isPaused && 
-                self.hero_state != ActorStates.no_input && 
-                !self.cState.dashing && 
-                !self.cState.backDashing && 
-                (!self.cState.attacking || !(ReflectionHelper.GetField<HeroController, float>(self, "attack_time") <
-                                             ReflectionHelper.GetField<HeroController, float>(self, "ATTACK_RECOVERY_TIME"))) && 
-                !self.controlReqlinquished && 
-                !self.cState.hazardDeath && 
-                !self.cState.hazardRespawning && 
-                !self.cState.recoilFrozen && 
-                !self.cState.recoiling && 
-                !self.cState.transitioning && 
-                self.cState.onGround
-            );
-
-            return orig(self) || (boolLessDNail && isInGolfRoom);
-        }
-
         private void NailOverride2(On.HeroController.orig_DoAttack orig, HeroController self)
         {
-            orig(self);
+            if (isInGolfRoom)
+            {
+                self.Attack(GetAttackDirection(self));
+            }
+            else
+            {
+                orig(self);
+            }
+        }
+
+        private static AttackDirection GetAttackDirection(HeroController hc)
+        {
+            if (hc.wallSlidingL)
+            {
+                return AttackDirection.normal;
+            }
+            else if (hc.wallSlidingR)
+            {
+                return AttackDirection.normal;
+            }
+
+            if (hc.vertical_input > Mathf.Epsilon)
+            {
+                return AttackDirection.upward;
+            }
+            else if (hc.vertical_input < -Mathf.Epsilon)
+            {
+                if (hc.hero_state != ActorStates.idle && hc.hero_state != ActorStates.running)
+                {
+                    return AttackDirection.downward;
+                }
+                else
+                {
+                    return AttackDirection.normal;
+                }
+            }
+            else
+            {
+                return AttackDirection.normal;
+            }
         }
 
         private bool BoolOverride(string name, bool orig)
@@ -195,15 +264,7 @@ namespace MilliGolf {
                 self.hero_state != ActorStates.hard_landing && 
                 self.hero_state != ActorStates.dash_landing
                 );
-            
-            if (boolLessNail && isInGolfRoom)
-            {
-                return true;
-            }
-            else
-            {
-                return orig(self);
-            }
+            return orig(self) || (boolLessNail && isInGolfRoom);
         }
         private bool WingsOverride(On.HeroController.orig_CanDoubleJump orig, HeroController self)
         {
@@ -374,7 +435,12 @@ namespace MilliGolf {
         }
 
         private void onNewGameSetup() {
-            GolfManager.SaveSettings.randoSettings.Enabled = GolfManager.GlobalSettings.Enabled;
+            bool isRando = false;
+            if (ModHooks.GetMod("Randomizer 4") is Mod)
+            {
+                isRando = ItemChangerMod.Modules.Get<RandomizerModule>() is not null;
+            }
+            GolfManager.SaveSettings.randoSettings.Enabled = GolfManager.GlobalSettings.Enabled && isRando;
             GolfManager.SaveSettings.randoSettings.CourseAccess = GolfManager.GlobalSettings.CourseAccess;
             GolfManager.SaveSettings.randoSettings.CourseCompletion = GolfManager.GlobalSettings.CourseCompletion;
             GolfManager.SaveSettings.randoSettings.GlobalGoals = GolfManager.GlobalSettings.GlobalGoals;
@@ -435,6 +501,18 @@ namespace MilliGolf {
                 singleTapState.AddAction(new toggleCamTarget());
             }
             else if(self.gameObject.name == "Knight" && self.FsmName == "Dream Nail") {
+                // Allow DreamGate when golfing
+                isGolfingBool golfDG = new();
+                golfDG.isTrue = FsmEvent.GetFsmEvent("GOLFING");
+                self.AddState("Golf DG");
+                self.AddAction("Golf DG", self.GetAction("Dream Gate?", 1));
+                self.AddAction("Golf DG", self.GetAction("Dream Gate?", 2));
+                self.AddAction("Golf DG", self.GetAction("Dream Gate?", 3));
+                self.AddFirstAction("Dream Gate?", golfDG);
+                self.AddTransition("Dream Gate?", "GOLFING", "Golf DG");
+                self.AddTransition("Golf DG", "SET", "Set Charge Start");
+                self.AddTransition("Golf DG", "WARP", "Warp Charge Start");
+                self.AddTransition("Golf DG", "FINISHED", "Slash Antic");
                 //deny setting a dgate
                 isGolfingBool isGolfingSet = new();
                 isGolfingSet.isTrue = FsmEvent.GetFsmEvent("FAIL");
@@ -668,7 +746,8 @@ namespace MilliGolf {
                     }
 
                     bool radiantRando = golfData.randoSettings.Enabled && golfData.randoSettings.GlobalGoals >= MaxTier.Radiant;
-                    if((!radiantRando && totalScore <= golfMilestones.Expert && golfData.scoreboard.Count == 18) || radiantRando && golfData.randoSaveState.globalGoals >= 3) {
+                    if((!radiantRando && totalScore <= golfMilestones.Expert && golfData.scoreboard.Count == 18) || (radiantRando && golfData.randoSaveState.globalGoals >= 3)) 
+                    {
                         addTrophyStatue(totalScore);
                     }
                     else {
@@ -966,7 +1045,7 @@ namespace MilliGolf {
                     }
                 }
                 outputText = "GRANDMASTER\r\nCongratulations, you have achieved an an extraordinary score and can officially consider yourself a God Gamer.<page>(No affiliation with fireb0rn and his academy)";
-                if (golfData.randoSettings.GlobalGoals == MaxTier.Grandmaster && golfData.randoSaveState.globalGoals < 5)
+                if (golfData.randoSettings.GlobalGoals == MaxTier.Grandmaster && score > golfMilestones.Master)
                 {
                     outputText += $"<page>...Is what you will be told if you ever get to do all courses in {golfMilestones.Grandmaster} hits or less, that is.";
                 }
@@ -984,9 +1063,13 @@ namespace MilliGolf {
                     }
                 }
                 outputText = "MASTER\r\nWell done achieving such an impressive score! You've come so far, but there's one more level to reach!";
-                if (golfData.randoSettings.GlobalGoals >= MaxTier.Master && golfData.randoSaveState.globalGoals < 4)
+                if (golfData.randoSettings.GlobalGoals >= MaxTier.Master && score > golfMilestones.Master)
                 {
-                    outputText += $"<page>...Is what you will be told if you ever get to do all courses in {golfMilestones.Grandmaster} hits or less, that is.";
+                    outputText += $"<page>...Is what you will be told if you ever get to do all courses in {golfMilestones.Master} hits or less, that is.";
+                }
+                if (!golfData.randoSettings.Enabled || (golfData.randoSettings.GlobalGoals < MaxTier.Grandmaster && golfData.scoreboard.Count == 18))
+                {
+                    outputText += $"<page>{score-golfMilestones.Grandmaster} away from Grandmaster";
                 }
             }
             else {
@@ -995,16 +1078,20 @@ namespace MilliGolf {
                 knight3.SetActive(false);
                 knightWithFsm = knight1;
                 outputText = "EXPERT\r\nNice job reaching Radiant!";
-                if (golfData.randoSettings.GlobalGoals >= MaxTier.Master && golfData.randoSaveState.globalGoals < 3)
+                if (golfData.randoSettings.GlobalGoals >= MaxTier.Master && score > golfMilestones.Expert)
                 {
                     outputText += $"<page>...Is what you will be told if you ever get to do all courses in {golfMilestones.Expert} hits or less, that is.";
                 }
+                else if (!golfData.randoSettings.Enabled || (golfData.randoSettings.GlobalGoals < MaxTier.Master  && golfData.scoreboard.Count == 18))
+                {
+                    outputText += $"<page>{score-golfMilestones.Master} away from Master";
+                }
             }
-            outputText = OnAttunedPreview.Invoke(outputText);
-            outputText = OnAscendedPreview.Invoke(outputText);
-            outputText = OnRadiantPreview.Invoke(outputText);
-            outputText = OnMasterPreview.Invoke(outputText);
-            outputText = OnGrandmasterPreview.Invoke(outputText);
+            outputText += OnAttunedPreview?.Invoke();
+            outputText += OnAscendedPreview?.Invoke();
+            outputText += OnRadiantPreview?.Invoke();
+            outputText += OnMasterPreview?.Invoke();
+            outputText += OnGrandmasterPreview?.Invoke();
             statueBase.SetActive(true);
             PlayMakerFSM convo = PlayMakerFSM.FindFsmOnGameObject(knightWithFsm.FindGameObjectInChildren("Interact"), "Conversation Control");
             CallMethodProper callAction = (CallMethodProper)convo.GetState("Greet").Actions[1];
@@ -1157,7 +1244,7 @@ namespace MilliGolf {
                         else if (randoGoals == MaxTier.Ascended)
                         {
                             int goals = golfData.randoSaveState.globalGoals;
-                            if (totalScore <= golfMilestones.Radiant) {
+                            if (golfData.scoreboard.Count == 18 && totalScore <= golfMilestones.Radiant) {
                                 goals += 1;
                             }
                             uuiImage.sprite = bsu.stateSprites[Math.Min(goals + 1, 4)];  
@@ -1165,10 +1252,10 @@ namespace MilliGolf {
                         else
                         {
                             int goals = golfData.randoSaveState.globalGoals;
-                            if (totalScore <= golfMilestones.Radiant) {
+                            if (golfData.scoreboard.Count == 18 && totalScore <= golfMilestones.Radiant) {
                                 goals += 1;
                             }
-                            if (totalScore <= golfMilestones.Ascended) {
+                            if (golfData.scoreboard.Count == 18 && totalScore <= golfMilestones.Ascended) {
                                 goals += 1;
                             }
                             uuiImage.sprite = bsu.stateSprites[Math.Min(goals + 1, 4)];  
@@ -1215,11 +1302,11 @@ namespace MilliGolf {
                     }
                     if (golfData.randoSettings.GlobalGoals > MaxTier.None)
                     {
-                        hallString = OnAttunedPreview?.Invoke(hallString);
-                        hallString = OnAscendedPreview?.Invoke(hallString);
-                        hallString = OnRadiantPreview?.Invoke(hallString);
-                        hallString = OnMasterPreview?.Invoke(hallString);
-                        hallString = OnGrandmasterPreview?.Invoke(hallString);
+                        hallString += OnAttunedPreview?.Invoke();
+                        hallString += OnAscendedPreview?.Invoke();
+                        hallString += OnRadiantPreview?.Invoke();
+                        hallString += OnMasterPreview?.Invoke();
+                        hallString += OnGrandmasterPreview?.Invoke();
                     }
                     else
                     {

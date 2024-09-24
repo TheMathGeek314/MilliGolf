@@ -1,4 +1,5 @@
 using ItemChanger;
+using ItemChanger.Extensions;
 using ItemChanger.Locations;
 using ItemChanger.Tags;
 using ItemChanger.Util;
@@ -71,44 +72,73 @@ namespace MilliGolf.Rando.IC
                 {
                     hint = $"Completing all courses will grant you {Placement.GetUIName()}.";
                 }
-                MilliGolf.Instance.Log(hint);
                 Placement.OnPreview(hint);
             }
             return hint;
         }
-        private string AttunedHint(string currentDialogue)
+        private string AttunedHint()
         {
-            string hint = GiveHint();
-            currentDialogue += $"<page>{hint}";
-            return currentDialogue;
+            if (!Placement.Items.AnyEverObtained())
+            {
+                string hint = GiveHint();
+                return $"<page>{hint}";
+            }
+            else
+            {
+                return "";
+            }
         }
 
-        private string AscendedHint(string currentDialogue)
+        private string AscendedHint()
         {
-            string hint = GiveHint();
-            currentDialogue += $"<page>{hint}";
-            return currentDialogue;
+            if (!Placement.Items.AnyEverObtained())
+            {
+                string hint = GiveHint();
+                return $"<page>{hint}";
+            }
+            else
+            {
+                return "";
+            }
         }
 
-        private string RadiantHint(string currentDialogue)
+        private string RadiantHint()
         {
-            string hint = GiveHint();
-            currentDialogue += $"<page>{hint}";
-            return currentDialogue;
+            if (!Placement.Items.AnyEverObtained())
+            {
+                string hint = GiveHint();
+                return $"<page>{hint}";
+            }
+            else
+            {
+                return "";
+            }
         }
 
-        private string MasterHint(string currentDialogue)
+        private string MasterHint()
         {
-            string hint = GiveHint();
-            currentDialogue += $"<page>{hint}";
-            return currentDialogue;
+            if (!Placement.Items.AnyEverObtained())
+            {
+                string hint = GiveHint();
+                return $"<page>{hint}";
+            }
+            else
+            {
+                return "";
+            }
         }
 
-        private string GrandmasterHint(string currentDialogue)
+        private string GrandmasterHint()
         {
-            string hint = GiveHint();
-            currentDialogue += $"<page>{hint}";
-            return currentDialogue;
+            if (!Placement.Items.AnyEverObtained())
+            {
+                string hint = GiveHint();
+                return $"<page>{hint}";
+            }
+            else
+            {
+                return "";
+            }
         }
 
         private void GiveItem(int score)

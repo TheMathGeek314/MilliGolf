@@ -115,7 +115,6 @@ namespace MilliGolf {
             On.HeroController.LookForInput += ClawOverride3; // Really? Does it have to get THIS hacky?
             On.HeroController.CanSuperDash += CDashOverride;
             On.HeroController.CanDreamNail += DreamNailOverride;
-            //On.HeroController.CanDreamGate += DreamGateOverride;
             On.HeroController.CanDoubleJump += WingsOverride;
             if (ModHooks.GetMod("ItemChangerMod") is Mod)
             {
@@ -162,27 +161,6 @@ namespace MilliGolf {
             );
 
             return orig(self) || (boolLessDNail && isInGolfRoom);
-        }
-
-        private bool DreamGateOverride(On.HeroController.orig_CanDreamGate orig, HeroController self)
-        {
-            bool boolLessDGate = (
-                !GameManager.instance.isPaused && 
-                self.hero_state != ActorStates.no_input && 
-                !self.cState.dashing && 
-                !self.cState.backDashing && 
-                (!self.cState.attacking || !(ReflectionHelper.GetField<HeroController, float>(self, "attack_time") <
-                                             ReflectionHelper.GetField<HeroController, float>(self, "ATTACK_RECOVERY_TIME"))) && 
-                !self.controlReqlinquished && 
-                !self.cState.hazardDeath && 
-                !self.cState.hazardRespawning && 
-                !self.cState.recoilFrozen && 
-                !self.cState.recoiling && 
-                !self.cState.transitioning && 
-                self.cState.onGround
-            );
-
-            return orig(self) || (boolLessDGate && isInGolfRoom);
         }
 
         private void NailOverride2(On.HeroController.orig_DoAttack orig, HeroController self)

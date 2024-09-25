@@ -127,6 +127,7 @@ namespace MilliGolf {
         {
             SplitNail splitNail = ItemChangerMod.Modules.Get<SplitNail>();
             SplitCloak splitDash = ItemChangerMod.Modules.Get<SplitCloak>();
+            SwimSkill swim = ItemChangerMod.Modules.Get<SwimSkill>();
             if (splitNail is not null)
             {
                 On.HeroController.CanAttack -= NailOverride;
@@ -138,6 +139,10 @@ namespace MilliGolf {
             {
                 On.HeroController.CanDash -= DashOverride;
                 On.HeroController.CanDash += DashOverride;
+            }
+            if (swim is not null)
+            {
+                Events.AddFsmEdit(new("Surface Water Region"), SwimOverride);
             }
         }
 
@@ -459,6 +464,20 @@ namespace MilliGolf {
                     self.GetState("Get Damager Parameters").InsertAction(new storeTinkDamager(self), 1);
                 }
             }
+            else if (self.gameObject.name == "Quirrel Mantis NPC(Clone)(Clone)" && self.FsmName == "FSM")
+            {
+                isGolfingBool golfQuirrel = new();
+                golfQuirrel.isTrue = FsmEvent.GetFsmEvent("ENABLE");
+                self.AddState("Keep");
+                self.AddFirstAction("Check", golfQuirrel);
+                self.AddTransition("Check", "ENABLE", "Keep");
+            }
+            else if (self.gameObject.name == "Surface Water Region" && self.FsmName == "Acid Armour Check")
+            {
+                isGolfingBool golfIsma = new();
+                golfIsma.isTrue = FsmEvent.GetFsmEvent("ENABLE");
+                self.AddFirstAction("Check", golfIsma);
+            }
             else if(self.FsmName == "Door Control") {
                 try {
                     self.GetState("In Range").InsertAction(new renameEnterLabel(self, "ENTER"), 1);
@@ -540,6 +559,21 @@ namespace MilliGolf {
                 self.GetState("Set Text Large").InsertAction(new pbSetTitleText(), 3);
                 self.GetState("Set Text Small").InsertAction(new pbSetTitleText(), 0);
             }
+        }
+
+        // Since this FSM Edit is exclusive to runs that Randomize Swim, we call it at a different time
+        private void SwimOverride(PlayMakerFSM fsm)
+        {
+            if (fsm.gameObject.LocateMyFSM("Acid Armour Check") != null) return;
+            
+            isGolfingBool golfSwim = new();
+            golfSwim.isTrue = FsmEvent.GetFsmEvent("GOLFING");
+            fsm.AddState("Is Golfing?");
+            fsm.AddTransition("Is Golfing?", "GOLFING", "Big Splash?");
+            fsm.AddTransition("Is Golfing?", "FINISHED", "Damage Hero");
+            fsm.AddCustomAction("Is Golfing?", () => Log("Is golfing check."));
+            fsm.AddAction("Is Golfing?", golfSwim);
+            fsm.ChangeTransition("Check Swim", "DAMAGE", "Is Golfing?");
         }
 
         private string onBeforeSceneLoad(string arg) {

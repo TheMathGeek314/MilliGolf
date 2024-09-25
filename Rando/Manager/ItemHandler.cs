@@ -113,20 +113,23 @@ namespace MilliGolf.Rando.Manager
                     };
                 });
 
-                List<string> ranks = ["Attuned", "Ascended", "Radiant", "Master", "Grandmaster"];
-                foreach (string rank in ranks)
+                List<(string, int)> ranks = [("Attuned", 1), ("Ascended", 2), ("Radiant", 3), ("Master", 4), ("Grandmaster", 5)];
+                foreach ((string rank, int tier) in ranks)
                 {
-                    rb.AddLocationByName($"Milligolf_{rank}");
-                    rb.EditLocationRequest($"Milligolf_{rank}", info =>
+                    if ((int)GolfManager.GlobalSettings.GlobalGoals >= tier)
                     {
-                        info.getLocationDef = () => new()
+                        rb.AddLocationByName($"Milligolf_{rank}");
+                        rb.EditLocationRequest($"Milligolf_{rank}", info =>
                         {
-                            Name = $"Milligolf_{rank}",
-                            SceneName = SceneNames.Town,
-                            FlexibleCount = false,
-                            AdditionalProgressionPenalty = false
-                        };
-                    });
+                            info.getLocationDef = () => new()
+                            {
+                                Name = $"Milligolf_{rank}",
+                                SceneName = SceneNames.Town,
+                                FlexibleCount = false,
+                                AdditionalProgressionPenalty = false
+                            };
+                        });
+                    }
                 }
             }
         }

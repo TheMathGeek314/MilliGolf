@@ -1,7 +1,15 @@
 using System.Collections.Generic;
+using GlobalEnums;
+using HutongGames.PlayMaker;
+using ItemChanger;
+using ItemChanger.Modules;
 using MilliGolf.Rando.Settings;
+using Modding;
 using Newtonsoft.Json;
+using RandomizerMod.IC;
 using RandomizerMod.Logging;
+using Satchel;
+using UnityEngine;
 
 namespace MilliGolf.Rando.Manager
 {
@@ -37,6 +45,16 @@ namespace MilliGolf.Rando.Manager
             SettingsLog.AfterLogSettings += AddFileSettings;
         }
 
+        public static bool IsRandoSave()
+        {
+            return ItemChangerMod.Modules.Get<RandomizerModule>() is not null;
+        }
+
+        public static void AddICHooks()
+        {
+            Events.OnEnterGame += ICHooks;
+            Events.AfterStartNewGame += ICHooks;
+        }
         private static void AddFileSettings(LogArguments args, System.IO.TextWriter tw)
         {
             // Log settings into the settings file
@@ -44,6 +62,122 @@ namespace MilliGolf.Rando.Manager
             using JsonTextWriter jtw = new(tw) { CloseOutput = false };
             RandomizerMod.RandomizerData.JsonUtil._js.Serialize(jtw, GlobalSettings);
             tw.WriteLine();
+        }
+
+        private static void ICHooks()
+        {
+            SplitNail splitNail = ItemChangerMod.Modules.Get<SplitNail>();
+            SplitCloak splitDash = ItemChangerMod.Modules.Get<SplitCloak>();
+            SwimSkill swim = ItemChangerMod.Modules.Get<SwimSkill>();
+            if (splitNail is not null)
+            {
+                On.HeroController.CanAttack -= NailOverride;
+                On.HeroController.DoAttack -= NailOverride2;
+                On.HeroController.CanAttack += NailOverride;
+                On.HeroController.DoAttack += NailOverride2; // Yes, it does need to get THIS hacky.
+            }
+            if (splitDash is not null)
+            {
+                On.HeroController.CanDash -= DashOverride;
+                On.HeroController.CanDash += DashOverride;
+            }
+            if (swim is not null)
+            {
+                Events.AddFsmEdit(new("Surface Water Region"), SwimOverride);
+                Events.AddFsmEdit(new("Surface Water Region"), SwimOverride);
+            }
+        }
+
+        private static bool NailOverride(On.HeroController.orig_CanAttack orig, HeroController self)
+        {
+            bool boolLessNail = (
+                ReflectionHelper.GetField<HeroController, float>(self, "attack_cooldown") <= 0f && 
+                !self.cState.attacking && 
+                !self.cState.dashing && 
+                !self.cState.dead && 
+                !self.cState.hazardDeath && 
+                !self.cState.hazardRespawning && 
+                !self.controlReqlinquished && 
+                self.hero_state != ActorStates.no_input && 
+                self.hero_state != ActorStates.hard_landing && 
+                self.hero_state != ActorStates.dash_landing
+                );
+            return orig(self) || (boolLessNail && MilliGolf.isInGolfRoom);
+        }
+
+        private static void NailOverride2(On.HeroController.orig_DoAttack orig, HeroController self)
+        {
+            if (MilliGolf.isInGolfRoom)
+            {
+                self.Attack(GetAttackDirection(self));
+            }
+            else
+            {
+                orig(self);
+            }
+        }
+
+        private static AttackDirection GetAttackDirection(HeroController hc)
+        {
+            if (hc.wallSlidingL)
+            {
+                return AttackDirection.normal;
+            }
+            else if (hc.wallSlidingR)
+            {
+                return AttackDirection.normal;
+            }
+
+            if (hc.vertical_input > Mathf.Epsilon)
+            {
+                return AttackDirection.upward;
+            }
+            else if (hc.vertical_input < -Mathf.Epsilon)
+            {
+                if (hc.hero_state != ActorStates.idle && hc.hero_state != ActorStates.running)
+                {
+                    return AttackDirection.downward;
+                }
+                else
+                {
+                    return AttackDirection.normal;
+                }
+            }
+            else
+            {
+                return AttackDirection.normal;
+            }
+        }
+
+        private static void SwimOverride(PlayMakerFSM fsm)
+        {
+            if (fsm.gameObject.LocateMyFSM("Acid Armour Check") != null) return;
+            
+            isGolfingBool golfSwim = new();
+            golfSwim.isTrue = FsmEvent.GetFsmEvent("GOLFING");
+            fsm.AddState("Is Golfing?");
+            fsm.AddTransition("Is Golfing?", "GOLFING", "Big Splash?");
+            fsm.AddTransition("Is Golfing?", "FINISHED", "Damage Hero");
+            fsm.AddAction("Is Golfing?", golfSwim);
+            fsm.ChangeTransition("Check Swim", "DAMAGE", "Is Golfing?");
+        }
+
+        private static bool DashOverride(On.HeroController.orig_CanDash orig, HeroController self)
+        {
+            bool boolessDash = (
+                self.hero_state != ActorStates.no_input &&
+                self.hero_state != ActorStates.hard_landing &&
+                self.hero_state != ActorStates.dash_landing &&
+                ReflectionHelper.GetField<HeroController, float>(self, "dashCooldownTimer") <= 0 &&
+                !self.cState.dashing &&
+                !self.cState.backDashing &&
+                (!self.cState.attacking || !(ReflectionHelper.GetField<HeroController, float>(self, "attack_time") <
+                                             ReflectionHelper.GetField<HeroController, float>(self, "ATTACK_RECOVERY_TIME"))) &&
+                !self.cState.preventDash &&
+                (self.cState.onGround || !ReflectionHelper.GetField<HeroController, bool>(self, "airDashed") || self.cState.wallSliding) &&
+                !self.cState.hazardDeath
+                );
+            return orig(self) || (boolessDash && MilliGolf.isInGolfRoom);
         }
     }
 }

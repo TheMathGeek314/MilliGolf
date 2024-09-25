@@ -571,7 +571,6 @@ namespace MilliGolf {
             fsm.AddState("Is Golfing?");
             fsm.AddTransition("Is Golfing?", "GOLFING", "Big Splash?");
             fsm.AddTransition("Is Golfing?", "FINISHED", "Damage Hero");
-            fsm.AddCustomAction("Is Golfing?", () => Log("Is golfing check."));
             fsm.AddAction("Is Golfing?", golfSwim);
             fsm.ChangeTransition("Check Swim", "DAMAGE", "Is Golfing?");
         }

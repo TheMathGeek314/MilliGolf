@@ -15,9 +15,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
-using ItemChanger;
-using ItemChanger.Modules;
-using RandomizerMod.IC;
 
 namespace MilliGolf {
     public class MilliGolf: Mod, ILocalSettings<LocalGolfSettings>, IGlobalSettings<GolfRandoSettings> {
@@ -118,26 +115,7 @@ namespace MilliGolf {
             On.HeroController.CanDoubleJump += WingsOverride;
             if (ModHooks.GetMod("ItemChangerMod") is Mod)
             {
-                Events.OnEnterGame += ICHooks;
-                Events.AfterStartNewGame += ICHooks;
-            }
-        }
-
-        private void ICHooks()
-        {
-            SplitNail splitNail = ItemChangerMod.Modules.Get<SplitNail>();
-            SplitCloak splitDash = ItemChangerMod.Modules.Get<SplitCloak>();
-            if (splitNail is not null)
-            {
-                On.HeroController.CanAttack -= NailOverride;
-                On.HeroController.DoAttack -= NailOverride2;
-                On.HeroController.CanAttack += NailOverride;
-                On.HeroController.DoAttack += NailOverride2; // Yes, it does need to get THIS hacky.
-            }
-            if (splitDash is not null)
-            {
-                On.HeroController.CanDash -= DashOverride;
-                On.HeroController.CanDash += DashOverride;
+                GolfManager.AddICHooks();
             }
         }
 
@@ -163,50 +141,6 @@ namespace MilliGolf {
             return orig(self) || (boolLessDNail && isInGolfRoom);
         }
 
-        private void NailOverride2(On.HeroController.orig_DoAttack orig, HeroController self)
-        {
-            if (isInGolfRoom)
-            {
-                self.Attack(GetAttackDirection(self));
-            }
-            else
-            {
-                orig(self);
-            }
-        }
-
-        private static AttackDirection GetAttackDirection(HeroController hc)
-        {
-            if (hc.wallSlidingL)
-            {
-                return AttackDirection.normal;
-            }
-            else if (hc.wallSlidingR)
-            {
-                return AttackDirection.normal;
-            }
-
-            if (hc.vertical_input > Mathf.Epsilon)
-            {
-                return AttackDirection.upward;
-            }
-            else if (hc.vertical_input < -Mathf.Epsilon)
-            {
-                if (hc.hero_state != ActorStates.idle && hc.hero_state != ActorStates.running)
-                {
-                    return AttackDirection.downward;
-                }
-                else
-                {
-                    return AttackDirection.normal;
-                }
-            }
-            else
-            {
-                return AttackDirection.normal;
-            }
-        }
-
         private bool BoolOverride(string name, bool orig)
         {
             List<string> overriden = [
@@ -224,22 +158,6 @@ namespace MilliGolf {
             return orig;
         }
 
-        private bool NailOverride(On.HeroController.orig_CanAttack orig, HeroController self)
-        {
-            bool boolLessNail = (
-                ReflectionHelper.GetField<HeroController, float>(self, "attack_cooldown") <= 0f && 
-                !self.cState.attacking && 
-                !self.cState.dashing && 
-                !self.cState.dead && 
-                !self.cState.hazardDeath && 
-                !self.cState.hazardRespawning && 
-                !self.controlReqlinquished && 
-                self.hero_state != ActorStates.no_input && 
-                self.hero_state != ActorStates.hard_landing && 
-                self.hero_state != ActorStates.dash_landing
-                );
-            return orig(self) || (boolLessNail && isInGolfRoom);
-        }
         private bool WingsOverride(On.HeroController.orig_CanDoubleJump orig, HeroController self)
         {
             bool boolessWings = (
@@ -412,7 +330,7 @@ namespace MilliGolf {
             bool isRando = false;
             if (ModHooks.GetMod("Randomizer 4") is Mod)
             {
-                isRando = ItemChangerMod.Modules.Get<RandomizerModule>() is not null;
+                isRando = GolfManager.IsRandoSave();
             }
             GolfManager.SaveSettings.randoSettings.Enabled = GolfManager.GlobalSettings.Enabled && isRando;
             GolfManager.SaveSettings.randoSettings.CourseAccess = GolfManager.GlobalSettings.CourseAccess;
@@ -458,6 +376,20 @@ namespace MilliGolf {
                 else if(self.FsmName == "tink_effect") {
                     self.GetState("Get Damager Parameters").InsertAction(new storeTinkDamager(self), 1);
                 }
+            }
+            else if (self.gameObject.name == "Quirrel Mantis NPC(Clone)(Clone)" && self.FsmName == "FSM")
+            {
+                isGolfingBool golfQuirrel = new();
+                golfQuirrel.isTrue = FsmEvent.GetFsmEvent("ENABLE");
+                self.AddState("Keep");
+                self.AddFirstAction("Check", golfQuirrel);
+                self.AddTransition("Check", "ENABLE", "Keep");
+            }
+            else if (self.gameObject.name == "Surface Water Region" && self.FsmName == "Acid Armour Check")
+            {
+                isGolfingBool golfIsma = new();
+                golfIsma.isTrue = FsmEvent.GetFsmEvent("ENABLE");
+                self.AddFirstAction("Check", golfIsma);
             }
             else if(self.FsmName == "Door Control") {
                 try {
@@ -868,6 +800,8 @@ namespace MilliGolf {
             peak.knightSpawn = new Vector3(177.8f, 27.4f, 0.004f);
             peak.objectsToDisable.Add("brk_barrel_04");
             peak.objectsToDisable.Add("crystal_barrel_03");
+            peak.objectsToDisable.Add("Crown Door");
+            peak.objectsToDisable.Add("Crown_SecretMask");
             peak.flagData = ("flagSignNW", 8.8f, 9.81f);
 
             golfScene palace = new("White Palace", "White_Palace_19", "top1", "left1");

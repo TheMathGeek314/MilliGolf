@@ -143,10 +143,10 @@ namespace MilliGolf {
 
         private bool BoolOverride(string name, bool orig)
         {
-            List<string> overriden = [
+            List<string> overriden = new() {
                 "hasMap",
                 "hasNailArt"
-            ];
+            };
             if (name == "crossroadsInfected")
             {
                 return orig && !isInGolfRoom;

@@ -36,7 +36,7 @@ namespace MilliGolf.Rando.IC
                 shopDesc = new BoxedString("It is time for vengeance."),
                 sprite = new GolfSprite("flagSignE")
             };
-            tags = [GolfItemTag()];
+            tags = new() {GolfItemTag()};
         }
         private static Tag GolfItemTag()
         {

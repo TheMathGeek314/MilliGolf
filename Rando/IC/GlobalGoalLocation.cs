@@ -17,7 +17,7 @@ namespace MilliGolf.Rando.IC
             threshold = maxHits;
             sceneName = SceneNames.GG_Workshop;
             flingType = FlingType.DirectDeposit;
-            tags = [CompletionTag(x, y)];
+            tags = new() {CompletionTag(x, y)};
         }
         
         private static Tag CompletionTag(float x, float y)

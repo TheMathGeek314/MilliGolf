@@ -113,7 +113,7 @@ namespace MilliGolf.Rando.Manager
                     };
                 });
 
-                List<(string, int)> ranks = [("Attuned", 1), ("Ascended", 2), ("Radiant", 3), ("Master", 4), ("Grandmaster", 5)];
+                List<(string, int)> ranks = new() {("Attuned", 1), ("Ascended", 2), ("Radiant", 3), ("Master", 4), ("Grandmaster", 5)};
                 foreach ((string rank, int tier) in ranks)
                 {
                     if ((int)GolfManager.GlobalSettings.GlobalGoals >= tier)

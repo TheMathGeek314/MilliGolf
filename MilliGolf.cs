@@ -113,9 +113,20 @@ namespace MilliGolf {
             On.HeroController.CanSuperDash += CDashOverride;
             On.HeroController.CanDreamNail += DreamNailOverride;
             On.HeroController.CanDoubleJump += WingsOverride;
+            On.DeactivateInDarknessWithoutLantern.Start += HazardRespawn;
             if (ModHooks.GetMod("ItemChangerMod") is Mod)
             {
                 GolfManager.AddICHooks();
+            }
+        }
+
+        private void HazardRespawn(On.DeactivateInDarknessWithoutLantern.orig_Start orig, DeactivateInDarknessWithoutLantern self)
+        {
+            orig(self);
+
+            if (self.GetComponent<HazardRespawnTrigger>() != null && isInGolfRoom)
+            {
+                self.gameObject.SetActive(true);
             }
         }
 
@@ -143,15 +154,19 @@ namespace MilliGolf {
 
         private bool BoolOverride(string name, bool orig)
         {
-            List<string> overriden = new() {
+            List<string> trueOverriden = new() {
                 "hasMap",
                 "hasNailArt"
             };
-            if (name == "crossroadsInfected")
+            List<string> falseOverriden = new() {
+                "crossroadsInfected",
+                "hasLantern"
+            };
+            if (falseOverriden.Contains(name))
             {
                 return orig && !isInGolfRoom;
             }
-            if(overriden.Contains(name))
+            if(trueOverriden.Contains(name))
             {
                 return orig || isInGolfRoom;
             }

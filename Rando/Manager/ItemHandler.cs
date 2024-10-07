@@ -16,20 +16,20 @@ namespace MilliGolf.Rando.Manager
 
         public static void DefineObjects()
         {
-            float f = -2.7f;
+            float f = -2.55f;
             foreach ((string name, string scene) in GolfManager.courseList)
             {
                 Finder.DefineCustomItem(new GolfItem(name, scene, "Course_Access"));
                 Finder.DefineCustomItem(new GolfItem(name, scene, "Course_Completion"));
-                Finder.DefineCustomLocation(new CourseCompletionLocation(name, scene, f, 1.5f));
+                Finder.DefineCustomLocation(new CourseCompletionLocation(name, scene, f, 0.6f));
                 f += 0.3f;
             }
             Finder.DefineCustomItem(new GolfItem("Goal_Tier", "_", "Milligolf"));
-            Finder.DefineCustomLocation(new GlobalGoalLocation("Attuned", 0, -0.6f, 1.8f));
-            Finder.DefineCustomLocation(new GlobalGoalLocation("Ascended", golfMilestones.Ascended, -0.3f, 1.8f));
-            Finder.DefineCustomLocation(new GlobalGoalLocation("Radiant", golfMilestones.Radiant, 0f, 1.8f));
-            Finder.DefineCustomLocation(new GlobalGoalLocation("Master", golfMilestones.Master, 0.3f, 1.8f));
-            Finder.DefineCustomLocation(new GlobalGoalLocation("Grandmaster", golfMilestones.Grandmaster, 0.6f, 1.8f));
+            Finder.DefineCustomLocation(new GlobalGoalLocation("Attuned", 0, -0.45f, 0.9f));
+            Finder.DefineCustomLocation(new GlobalGoalLocation("Ascended", golfMilestones.Ascended, -0.15f, 0.9f));
+            Finder.DefineCustomLocation(new GlobalGoalLocation("Radiant", golfMilestones.Radiant, 0.15f, 0.9f));
+            Finder.DefineCustomLocation(new GlobalGoalLocation("Master", golfMilestones.Master, 0.45f, 0.9f));
+            Finder.DefineCustomLocation(new GlobalGoalLocation("Grandmaster", golfMilestones.Grandmaster, 0.75f, 0.9f));
         }
 
         public static void AddObjects(RequestBuilder rb)

@@ -53,7 +53,7 @@ namespace MilliGolf {
             }
         }
         new public string GetName() => "MilliGolf";
-        public override string GetVersion() => "1.2.0.0";
+        public override string GetVersion() => "1.2.0.1";
         public static LocalGolfSettings golfData { get; set; } = new();
         public void OnLoadLocal(LocalGolfSettings g) => golfData = g;
         public LocalGolfSettings OnSaveLocal() => golfData;
@@ -567,6 +567,7 @@ namespace MilliGolf {
                             disableTransition(tp.gameObject);
                         }
                         else {
+                            tp.name += "_golf";
                             tp.targetScene = "GG_Workshop";
                             tp.entryPoint = "door" + (golfScene.courseList.IndexOf(self.sceneName) + 1);
                             tp.OnBeforeTransition += setCustomLoad.setCustomLoadTrue;

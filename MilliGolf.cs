@@ -677,6 +677,7 @@ namespace MilliGolf {
                     }
 
                     TransitionPoint workshopExit = GameObject.Find("left1").GetComponent<TransitionPoint>();
+                    workshopExit.name += "_golf";
                     workshopExit.targetScene = "Town";
                     workshopExit.entryPoint = "room_divine(Clone)(Clone)";
                     workshopExit.OnBeforeTransition += setCustomLoad.setCustomLoadFalse;

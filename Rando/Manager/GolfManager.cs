@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using GlobalEnums;
 using HutongGames.PlayMaker;
@@ -47,7 +48,15 @@ namespace MilliGolf.Rando.Manager
 
         public static bool IsRandoSave()
         {
-            return ItemChangerMod.Modules.Get<RandomizerModule>() is not null;
+            try
+            {
+                RandomizerModule module = ItemChangerMod.Modules.Get<RandomizerModule>();
+                return module is not null;
+            }
+            catch (NullReferenceException)
+            {
+                return false;
+            }
         }
 
         public static void AddICHooks()

@@ -53,7 +53,7 @@ namespace MilliGolf {
             }
         }
         new public string GetName() => "MilliGolf";
-        public override string GetVersion() => "1.2.0.1";
+        public override string GetVersion() => "1.2.0.2";
         public static LocalGolfSettings golfData { get; set; } = new();
         public void OnLoadLocal(LocalGolfSettings g) => golfData = g;
         public LocalGolfSettings OnSaveLocal() => golfData;
@@ -712,6 +712,7 @@ namespace MilliGolf {
             hive.doorColor = new Color(1, 0.7516f, 0.3917f, 0.466f);
             hive.millibelleSpawn = new Vector3(129.5f, 143.8f, 0.006f);
             hive.knightSpawn = new Vector3(137.7f, 143.4f, 0.004f);
+            hive.objectsToDisable.Add("Flamebearer Spawn");
             hive.hasQuirrel = true;
             hive.quirrelData = (120.4f, 143.81f, false, "HIVE");
             hive.flagData = ("flagSignSW", 80.4f, 112.81f);

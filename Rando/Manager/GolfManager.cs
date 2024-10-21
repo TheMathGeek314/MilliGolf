@@ -78,21 +78,23 @@ namespace MilliGolf.Rando.Manager
             SplitNail splitNail = ItemChangerMod.Modules.Get<SplitNail>();
             SplitCloak splitDash = ItemChangerMod.Modules.Get<SplitCloak>();
             SwimSkill swim = ItemChangerMod.Modules.Get<SwimSkill>();
+
+            On.HeroController.CanAttack -= NailOverride;
+            On.HeroController.DoAttack -= NailOverride2;
+            On.HeroController.CanDash -= DashOverride;
+            Events.RemoveFsmEdit(new("Surface Water Region"), SwimOverride);
+            
             if (splitNail is not null)
             {
-                On.HeroController.CanAttack -= NailOverride;
-                On.HeroController.DoAttack -= NailOverride2;
                 On.HeroController.CanAttack += NailOverride;
                 On.HeroController.DoAttack += NailOverride2; // Yes, it does need to get THIS hacky.
             }
             if (splitDash is not null)
             {
-                On.HeroController.CanDash -= DashOverride;
                 On.HeroController.CanDash += DashOverride;
             }
             if (swim is not null)
             {
-                Events.AddFsmEdit(new("Surface Water Region"), SwimOverride);
                 Events.AddFsmEdit(new("Surface Water Region"), SwimOverride);
             }
         }

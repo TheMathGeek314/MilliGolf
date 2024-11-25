@@ -133,7 +133,12 @@ namespace MilliGolf {
             On.HeroController.CanDreamNail += DreamNailOverride;
             On.HeroController.CanDoubleJump += WingsOverride;
             On.DeactivateInDarknessWithoutLantern.Start += HazardRespawn;
-
+            // This needs to run after ItemChanger's hook when IC is installed,
+            // therefore we need to hook before IC does.
+            // While IC loads earlier due to load priority, it actually only
+            // installs its hook on this method upon loading or creating a save,
+            // so hooking here does allow us to beat IC to the punch.
+            On.GameManager.BeginSceneTransition += TransitionToGolfRoom;
             if (ModHooks.GetMod("ItemChangerMod") is Mod)
             {
                 GolfManager.AddICHooks();
@@ -148,6 +153,18 @@ namespace MilliGolf {
             {
                 self.gameObject.SetActive(true);
             }
+        }
+
+        private const string golfRoomSuffix = "_MilliGolf";
+
+        private void TransitionToGolfRoom(On.GameManager.orig_BeginSceneTransition orig, GameManager self, GameManager.SceneLoadInfo info)
+        {
+            if (info.SceneName.EndsWith(golfRoomSuffix))
+            {
+                info.SceneName = info.SceneName.Substring(0, info.SceneName.Length - golfRoomSuffix.Length);
+                doCustomLoad = true;
+            }
+            orig(self, info);
         }
 
         private bool DreamNailOverride(On.HeroController.orig_CanDreamNail orig, HeroController self)
@@ -531,7 +548,6 @@ namespace MilliGolf {
                         PlayMakerFSM doorControlFSM = PlayMakerFSM.FindFsmOnGameObject(golfTransition, "Door Control");
                         FsmState changeSceneState = doorControlFSM.GetValidState("Change Scene");
                         ((BeginSceneTransition)changeSceneState.GetAction(1)).sceneName = "GG_Workshop";
-                        changeSceneState.InsertAction(new setCustomLoad(true), 1);
                         GameObject golfTent = GameObject.Instantiate(prefabs["Town"]["divine_tent"], new Vector3(205.1346f, 13.1462f, 47.2968f), Quaternion.identity);
                         setupTentPrefab(golfTent);
                         golfTent.GetComponent<PlayMakerFSM>().enabled = false;
@@ -597,9 +613,8 @@ namespace MilliGolf {
                         }
                         else {
                             tp.name += "_golf";
-                            tp.targetScene = "GG_Workshop";
+                            tp.targetScene = "GG_Workshop" + golfRoomSuffix;
                             tp.entryPoint = "door" + (tempList.IndexOf(self.sceneName) + (isInUnofficialCourse ? 19 : 1));
-                            tp.OnBeforeTransition += setCustomLoad.setCustomLoadTrue;
                         }
                     }
                     GameObject[] allGameObjects = GameObject.FindObjectsOfType<GameObject>();
@@ -770,10 +785,8 @@ namespace MilliGolf {
             PlayMakerFSM doorControlFSM = PlayMakerFSM.FindFsmOnGameObject(transition, "Door Control");
             FsmState changeSceneState = doorControlFSM.GetValidState("Change Scene");
             BeginSceneTransition enterAction = (BeginSceneTransition)(changeSceneState.GetAction(0));
-            enterAction.sceneName = room.scene;
+            enterAction.sceneName = room.scene + golfRoomSuffix;
             enterAction.entryGateName = room.startTransition;
-            changeSceneState.InsertAction(new setCustomLoad(true), 0);
-            changeSceneState.InsertAction(new setGate(transitionName), 1);
             FsmState inRangeState = doorControlFSM.GetValidState("In Range");
             ((renameEnterLabel)inRangeState.GetAction(1)).newName = room.name;
         }

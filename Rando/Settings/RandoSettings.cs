@@ -10,6 +10,7 @@ namespace MilliGolf.Rando.Settings
         public bool CourseCompletion = false;
         public MaxTier GlobalGoals = MaxTier.None;
         public bool EnableGoalPreviews = true;
+        public bool CourseTransitions = false;
     }
 
     public enum MaxTier

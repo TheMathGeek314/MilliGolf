@@ -42,6 +42,7 @@ namespace MilliGolf.Rando.Manager
         {
             LogicHandler.Hook();
             ItemHandler.Hook();
+            TransitionHandler.Hook();
             ConnectionMenu.Hook();
             SettingsLog.AfterLogSettings += AddFileSettings;
         }

@@ -155,13 +155,14 @@ namespace MilliGolf {
             }
         }
 
-        private const string golfRoomSuffix = "_MilliGolf";
+        internal const string golfTransitionSuffix = "_golf";
+        internal const string golfTentTransition = "room_milligolf";
 
         private void TransitionToGolfRoom(On.GameManager.orig_BeginSceneTransition orig, GameManager self, GameManager.SceneLoadInfo info)
         {
-            if (info.SceneName.EndsWith(golfRoomSuffix))
+            if (info.EntryGateName.EndsWith(golfTransitionSuffix))
             {
-                info.SceneName = info.SceneName.Substring(0, info.SceneName.Length - golfRoomSuffix.Length);
+                info.EntryGateName = info.EntryGateName.Substring(0, info.EntryGateName.Length - golfTransitionSuffix.Length);
                 doCustomLoad = true;
             }
             orig(self, info);
@@ -547,7 +548,13 @@ namespace MilliGolf {
                         golfTransition.SetActive(true);
                         PlayMakerFSM doorControlFSM = PlayMakerFSM.FindFsmOnGameObject(golfTransition, "Door Control");
                         FsmState changeSceneState = doorControlFSM.GetValidState("Change Scene");
-                        ((BeginSceneTransition)changeSceneState.GetAction(1)).sceneName = "GG_Workshop";
+                        BeginSceneTransition changeSceneAction = ((BeginSceneTransition)changeSceneState.GetAction(1));
+                        changeSceneAction.sceneName = "GG_Workshop";
+                        changeSceneAction.entryGateName = "left1" + golfTransitionSuffix;
+                        // The default name of the door includes (Clone)(Clone),
+                        // which is not valid in rando logic. We could alias it
+                        // just for rando, but why complicate things?
+                        golfTransition.GetComponent<TransitionPoint>().name = golfTentTransition;
                         GameObject golfTent = GameObject.Instantiate(prefabs["Town"]["divine_tent"], new Vector3(205.1346f, 13.1462f, 47.2968f), Quaternion.identity);
                         setupTentPrefab(golfTent);
                         golfTent.GetComponent<PlayMakerFSM>().enabled = false;
@@ -612,9 +619,9 @@ namespace MilliGolf {
                             disableTransition(tp.gameObject);
                         }
                         else {
-                            tp.name += "_golf";
-                            tp.targetScene = "GG_Workshop" + golfRoomSuffix;
-                            tp.entryPoint = "door" + (tempList.IndexOf(self.sceneName) + (isInUnofficialCourse ? 19 : 1));
+                            tp.name += golfTransitionSuffix;
+                            tp.targetScene = "GG_Workshop";
+                            tp.entryPoint = "door" + (tempList.IndexOf(self.sceneName) + (isInUnofficialCourse ? 19 : 1)) + golfTransitionSuffix;
                         }
                     }
                     GameObject[] allGameObjects = GameObject.FindObjectsOfType<GameObject>();
@@ -699,6 +706,22 @@ namespace MilliGolf {
                     foreach(BossStatue bs in statues) {
                         bs.gameObject.SetActive(false);
                     }
+                    TransitionPoint[] transitions = GameObject.FindObjectsOfType<TransitionPoint>();
+                    foreach(TransitionPoint tp in transitions) {
+                        if (tp.name == "left1") {
+                            tp.targetScene = "Town";
+                            tp.entryPoint = golfTentTransition;
+                            tp.OnBeforeTransition += setCustomLoad.setCustomLoadFalse;
+                        }
+                        // ensure that these transitions are
+                        // treated as distinct for randomization
+                        // purposes when the player actually
+                        // goes through them, while still allowing
+                        // them to have the original name while
+                        // loading
+                        tp.name += golfTransitionSuffix;
+                        
+                    }
                     GameObject[] gos = GameObject.FindObjectsOfType<GameObject>();
                     foreach(GameObject go in gos) {
                         if(go.name.StartsWith("BG_pillar") || go.name.Contains("clouds") || go.name == "gg_plat_float_wide") {
@@ -720,12 +743,6 @@ namespace MilliGolf {
                     else {
                         addQuirrel(19.7f, 6.81f, true, "HALL");
                     }
-
-                    TransitionPoint workshopExit = GameObject.Find("left1").GetComponent<TransitionPoint>();
-                    workshopExit.name += "_golf";
-                    workshopExit.targetScene = "Town";
-                    workshopExit.entryPoint = "room_divine(Clone)(Clone)";
-                    workshopExit.OnBeforeTransition += setCustomLoad.setCustomLoadFalse;
                 }
             }
             doCustomLoad = false;
@@ -785,8 +802,9 @@ namespace MilliGolf {
             PlayMakerFSM doorControlFSM = PlayMakerFSM.FindFsmOnGameObject(transition, "Door Control");
             FsmState changeSceneState = doorControlFSM.GetValidState("Change Scene");
             BeginSceneTransition enterAction = (BeginSceneTransition)(changeSceneState.GetAction(0));
-            enterAction.sceneName = room.scene + golfRoomSuffix;
-            enterAction.entryGateName = room.startTransition;
+            enterAction.sceneName = room.scene;
+            enterAction.entryGateName = room.startTransition + golfTransitionSuffix;
+            // TODO: add back setting the gate... somewhere?
             FsmState inRangeState = doorControlFSM.GetValidState("In Range");
             ((renameEnterLabel)inRangeState.GetAction(1)).newName = room.name;
         }

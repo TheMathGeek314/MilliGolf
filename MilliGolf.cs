@@ -554,6 +554,14 @@ namespace MilliGolf {
                         // The default name of the door includes (Clone)(Clone),
                         // which is not valid in rando logic. We could alias it
                         // just for rando, but why complicate things?
+                        TransitionPoint door = golfTransition.GetComponent<TransitionPoint>();
+                        door.name = golfTentTransition;
+                        // These are not needed for the transition to work normally,
+                        // but in transition rando ItemChanger looks at TransitionPoints to determine
+                        // which gate we're going through so it can know what to redirect us to,
+                        // so this info needs to be correct.
+                        door.targetScene = "GG_Workshop";
+                        door.entryPoint = "left1" + golfTransitionSuffix;
                         golfTransition.GetComponent<TransitionPoint>().name = golfTentTransition;
                         GameObject golfTent = GameObject.Instantiate(prefabs["Town"]["divine_tent"], new Vector3(205.1346f, 13.1462f, 47.2968f), Quaternion.identity);
                         setupTentPrefab(golfTent);
@@ -798,6 +806,10 @@ namespace MilliGolf {
             TransitionPoint tp = transition.GetComponent<TransitionPoint>();
             string transitionName = "door" + (isCustom ? (GolfScene.customCourseList.IndexOf(room.scene) + 19) : (GolfScene.courseList.IndexOf(room.scene) + 1));
             transition.name = tp.name = transitionName;
+            // Like in the main tent door, set the target room and gate so ItemChanger
+            // can find them when redirecting this transition.
+            tp.targetScene = room.scene;
+            tp.entryPoint = room.startTransition + golfTransitionSuffix;
             transition.SetActive(true);
             PlayMakerFSM doorControlFSM = PlayMakerFSM.FindFsmOnGameObject(transition, "Door Control");
             FsmState changeSceneState = doorControlFSM.GetValidState("Change Scene");

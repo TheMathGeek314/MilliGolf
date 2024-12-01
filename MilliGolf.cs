@@ -728,7 +728,6 @@ namespace MilliGolf {
                         // them to have the original name while
                         // loading
                         tp.name += golfTransitionSuffix;
-                        
                     }
                     GameObject[] gos = GameObject.FindObjectsOfType<GameObject>();
                     foreach(GameObject go in gos) {
@@ -788,9 +787,23 @@ namespace MilliGolf {
         }
 
         public static void placeDoor(float x, float y, GolfScene room, bool isCustom) {
+        public static void placeDoor(float x, float y, golfScene room) {
+            string transitionName = "door" + (isCustom ? (GolfScene.customCourseList.IndexOf(room.scene) + 19) : (GolfScene.courseList.IndexOf(room.scene) + 1));
+            // If the player doesn't have the access, still create a dummy transition point with
+            // no collision so that they can enter from the other side
+            // (only relevant for transition rando)
             bool accessRandomized = golfData.randoSettings.Enabled && golfData.randoSettings.CourseAccess;
             if (accessRandomized && !golfData.randoSaveState.courseAccess.GetVariable<bool>(room.scene))
+            {
+                GameObject dummy = new();
+                dummy.name = $"dummy transition from {room.scene}";
+                dummy.transform.position = new Vector3(x, y, 8.13f);
+                TransitionPoint dummyTP = dummy.AddComponent<TransitionPoint>();
+                dummyTP.name = transitionName;
+                dummyTP.nonHazardGate = true;
+                dummy.SetActive(true);
                 return;
+            }
 
             GameObject.Instantiate(prefabs["GG_Atrium"]["GG_big_door_part_small"], new Vector3(x, y, 8.13f), Quaternion.identity).SetActive(true);
 
@@ -804,7 +817,6 @@ namespace MilliGolf {
 
             GameObject transition = GameObject.Instantiate(prefabs["GG_Atrium"]["Door_Workshop"], new Vector3(x - 0.2f, y - 1.92f, 0.2f), Quaternion.identity);
             TransitionPoint tp = transition.GetComponent<TransitionPoint>();
-            string transitionName = "door" + (isCustom ? (GolfScene.customCourseList.IndexOf(room.scene) + 19) : (GolfScene.courseList.IndexOf(room.scene) + 1));
             transition.name = tp.name = transitionName;
             // Like in the main tent door, set the target room and gate so ItemChanger
             // can find them when redirecting this transition.

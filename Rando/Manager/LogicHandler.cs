@@ -53,7 +53,7 @@ namespace MilliGolf.Rando.Manager
             {
                 lmb.AddItem(new EmptyItemTemplate("Milligolf-Goal_Tier"));
 
-                string req = "Town";
+                string req = $"GG_Workshop[left1{MilliGolf.golfTransitionSuffix}]";
                 foreach ((string name, string scene) in GolfManager.courseList)
                 {
                     req += $" + Milligolf_Access-{name} + Milligolf_Complete-{name}";

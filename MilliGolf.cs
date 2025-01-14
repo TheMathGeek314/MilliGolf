@@ -141,7 +141,7 @@ namespace MilliGolf {
 
         private void TransitionToGolfRoom(On.GameManager.orig_BeginSceneTransition orig, GameManager self, GameManager.SceneLoadInfo info)
         {
-            if (info.EntryGateName.EndsWith(golfTransitionSuffix))
+            if (info.EntryGateName != null && info.EntryGateName.EndsWith(golfTransitionSuffix))
             {
                 info.EntryGateName = info.EntryGateName.Substring(0, info.EntryGateName.Length - golfTransitionSuffix.Length);
                 doCustomLoad = true;
@@ -944,6 +944,7 @@ namespace MilliGolf {
             enterAction.sceneName = room.scene;
             enterAction.entryGateName = room.startTransition + golfTransitionSuffix;
             // TODO: add back setting the gate... somewhere?
+            // maybe not needed?
             FsmState inRangeState = doorControlFSM.GetState("In Range");
             ((renameEnterLabel)inRangeState.GetAction(1)).newName = room.name;
         }

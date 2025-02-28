@@ -2,6 +2,10 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
 using HutongGames.PlayMaker;
 using HutongGames.PlayMaker.Actions;
 using Modding;
@@ -11,10 +15,6 @@ using uuiText = UnityEngine.UI.Text;
 using MilliGolf.Rando.Manager;
 using MilliGolf.Rando.Settings;
 using MilliGolf.Rando.Interop;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Reflection;
 
 namespace MilliGolf {
     public class MilliGolf: Mod, ILocalSettings<LocalGolfSettings>, IGlobalSettings<GolfRandoSettings> {
@@ -53,7 +53,7 @@ namespace MilliGolf {
             }
         }
         new public string GetName() => "MilliGolf";
-        public override string GetVersion() => "1.2.0.2";
+        public override string GetVersion() => "1.2.0.3";
         public static LocalGolfSettings golfData { get; set; } = new();
         public void OnLoadLocal(LocalGolfSettings g) => golfData = g;
         public LocalGolfSettings OnSaveLocal() => golfData;
@@ -370,26 +370,26 @@ namespace MilliGolf {
             orig(self);
             if(self.gameObject.name == "Banker Spa NPC(Clone)(Clone)" && self.gameObject.scene.name != "Ruins_Bathhouse") {
                 if(self.FsmName == "Hit Around") {
-                    self.GetState("Init").RemoveAction(2);
-                    self.GetState("Withdrawn").RemoveAction(0);
+                    self.GetValidState("Init").RemoveAction(2);
+                    self.GetValidState("Withdrawn").RemoveAction(0);
 
-                    FsmState leftState = self.GetState("Hit Left");
+                    FsmState leftState = self.GetValidState("Hit Left");
                     FsmOwnerDefault leftFlungObject = ((FlingObject)leftState.GetAction(1)).flungObject;
                     leftState.RemoveAction(1);
                     leftState.InsertAction(new customFlingObject(self.gameObject, leftFlungObject, 22, 120), 1);
 
-                    FsmState rightState = self.GetState("Hit Right");
+                    FsmState rightState = self.GetValidState("Hit Right");
                     FsmOwnerDefault rightFlungObject = ((FlingObject)rightState.GetAction(1)).flungObject;
                     rightState.RemoveAction(1);
                     rightState.InsertAction(new customFlingObject(self.gameObject, rightFlungObject, 22, 60), 1);
 
-                    FsmState upState = self.GetState("Hit Up");
+                    FsmState upState = self.GetValidState("Hit Up");
                     FsmOwnerDefault upFlungObject = ((FlingObject)upState.GetAction(1)).flungObject;
                     upState.RemoveAction(1);
                     upState.InsertAction(new customFlingObject(self.gameObject, upFlungObject, 30, 90), 1);
                 }
                 else if(self.FsmName == "tink_effect") {
-                    self.GetState("Get Damager Parameters").InsertAction(new storeTinkDamager(self), 1);
+                    self.GetValidState("Get Damager Parameters").InsertAction(new storeTinkDamager(self), 1);
                 }
             }
             else if (self.gameObject.name == "Quirrel Mantis NPC(Clone)(Clone)" && self.FsmName == "FSM")
@@ -408,7 +408,7 @@ namespace MilliGolf {
             }
             else if(self.FsmName == "Door Control") {
                 try {
-                    self.GetState("In Range").InsertAction(new renameEnterLabel(self, "ENTER"), 1);
+                    self.GetValidState("In Range").InsertAction(new renameEnterLabel(self, "ENTER"), 1);
                 }
                 catch(Exception) { }
             }
@@ -417,7 +417,7 @@ namespace MilliGolf {
             }
             else if(self.gameObject.name == "Knight" && self.FsmName == "Map Control") {
                 FsmState singleTapState = self.AddState("Single Tap");
-                self.GetState("Check Double").ChangeTransition("FINISHED", "Single Tap");
+                self.GetValidState("Check Double").ChangeTransition("FINISHED", "Single Tap");
                 singleTapState.AddTransition("FINISHED", "Reset Timer");
                 singleTapState.AddAction(new toggleCamTarget());
             }
@@ -437,9 +437,9 @@ namespace MilliGolf {
                 //deny setting a dgate
                 isGolfingBool isGolfingSet = new();
                 isGolfingSet.isTrue = FsmEvent.GetFsmEvent("FAIL");
-                self.GetState("Can Set?").InsertAction(isGolfingSet, 3);
+                self.GetValidState("Can Set?").InsertAction(isGolfingSet, 3);
                 //remove essence requirement to warp
-                FsmState canWarpState = self.GetState("Can Warp?");
+                FsmState canWarpState = self.GetValidState("Can Warp?");
                 isGolfingIntCompare isGolfingNoEssence = new((IntCompare)canWarpState.Actions[2]);
                 canWarpState.RemoveAction(2);
                 canWarpState.InsertAction(isGolfingNoEssence, 2);
@@ -451,13 +451,13 @@ namespace MilliGolf {
                 canWarpState.InsertAction(new setDreamReturnScene(), 7);
                 isGolfingBool isGoBoo = new();
                 isGoBoo.isTrue = FsmEvent.GetFsmEvent("DREAM");
-                self.GetState("Leave Type").AddAction(isGoBoo);
-                self.GetState("Leave Dream").InsertAction(new setDreamReturnDoor(self), 7);
+                self.GetValidState("Leave Type").AddAction(isGoBoo);
+                self.GetValidState("Leave Dream").InsertAction(new setDreamReturnDoor(self), 7);
                 canWarpState.InsertAction(new whitePalaceGolfOverride(), 9);
                 //shorten warp
                 isGolfingWait customWait = new(2, 0.25f);
                 customWait.finishEvent = FsmEvent.GetFsmEvent("CHARGED");
-                FsmState warpChargeState = self.GetState("Warp Charge");
+                FsmState warpChargeState = self.GetValidState("Warp Charge");
                 warpChargeState.RemoveAction(0);
                 warpChargeState.InsertAction(customWait, 0);
                 //single-tap quick-reset
@@ -483,9 +483,9 @@ namespace MilliGolf {
             }
             else if(self.gameObject.name == "Area Title" && self.FsmName == "Area Title Control") {
                 areaTitleRef = self;
-                self.GetState("Visited Check").InsertAction(new pbVisitedCheck(), 0);
-                self.GetState("Set Text Large").InsertAction(new pbSetTitleText(), 3);
-                self.GetState("Set Text Small").InsertAction(new pbSetTitleText(), 0);
+                self.GetValidState("Visited Check").InsertAction(new pbVisitedCheck(), 0);
+                self.GetValidState("Set Text Large").InsertAction(new pbSetTitleText(), 3);
+                self.GetValidState("Set Text Small").InsertAction(new pbSetTitleText(), 0);
             }
         }
 
@@ -509,7 +509,7 @@ namespace MilliGolf {
                         golfTransition.RemoveComponent<DeactivateIfPlayerdataFalse>();
                         golfTransition.SetActive(true);
                         PlayMakerFSM doorControlFSM = PlayMakerFSM.FindFsmOnGameObject(golfTransition, "Door Control");
-                        FsmState changeSceneState = doorControlFSM.GetState("Change Scene");
+                        FsmState changeSceneState = doorControlFSM.GetValidState("Change Scene");
                         ((BeginSceneTransition)changeSceneState.GetAction(1)).sceneName = "GG_Workshop";
                         changeSceneState.InsertAction(new setCustomLoad(true), 1);
                         GameObject golfTent = GameObject.Instantiate(prefabs["Town"]["divine_tent"], new Vector3(205.1346f, 13.1462f, 47.2968f), Quaternion.identity);
@@ -850,7 +850,6 @@ namespace MilliGolf {
                 "Grimm_tent_ext_0009_4 (4)",
                 "Grimm_tent_ext_0009_4 (5)"
             };
-            GameObject[] children = tent.GetComponentsInChildren<GameObject>();
             foreach(string gameObject in toHide) {
                 tent.FindGameObjectInChildren(gameObject).SetActive(false);
             }
@@ -883,13 +882,13 @@ namespace MilliGolf {
             transition.name = tp.name = transitionName;
             transition.SetActive(true);
             PlayMakerFSM doorControlFSM = PlayMakerFSM.FindFsmOnGameObject(transition, "Door Control");
-            FsmState changeSceneState = doorControlFSM.GetState("Change Scene");
+            FsmState changeSceneState = doorControlFSM.GetValidState("Change Scene");
             BeginSceneTransition enterAction = (BeginSceneTransition)(changeSceneState.GetAction(0));
             enterAction.sceneName = room.scene;
             enterAction.entryGateName = room.startTransition;
             changeSceneState.InsertAction(new setCustomLoad(true), 0);
             changeSceneState.InsertAction(new setGate(transitionName), 1);
-            FsmState inRangeState = doorControlFSM.GetState("In Range");
+            FsmState inRangeState = doorControlFSM.GetValidState("In Range");
             ((renameEnterLabel)inRangeState.GetAction(1)).newName = room.name;
         }
 
@@ -907,7 +906,7 @@ namespace MilliGolf {
             PlayMakerFSM[] FSMs = quirrel.GetComponents<PlayMakerFSM>();
             foreach(PlayMakerFSM self in FSMs) {
                 if(self.FsmName == "Conversation Control") {
-                    FsmState choiceState = self.GetState("Choice");
+                    FsmState choiceState = self.GetValidState("Choice");
                     FsmState golfState = self.CopyState("Repeat", "Golf");
 
                     choiceState.AddTransition("FINISHED", "Golf");
@@ -927,7 +926,7 @@ namespace MilliGolf {
         private void addFlag(string filename, float x, float y) {
             GameObject flagSign = GameObject.Instantiate(prefabs["Town"]["grimm_tents/main_tent/Grimm_town_signs_0001_1"], new Vector3(x, y, 0.023f), Quaternion.identity);
             SpriteRenderer sr = flagSign.GetComponent<SpriteRenderer>();
-            Texture2D testFlagTexture = new Texture2D(1, 1);
+            Texture2D testFlagTexture = new(1, 1);
             using(Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream($"MilliGolf.Images.{filename}.png")) {
                 byte[] bytes = new byte[stream.Length];
                 stream.Read(bytes, 0, bytes.Length);
@@ -1020,7 +1019,7 @@ namespace MilliGolf {
             outputText += OnGrandmasterPreview?.Invoke();
             statueBase.SetActive(true);
             PlayMakerFSM convo = PlayMakerFSM.FindFsmOnGameObject(knightWithFsm.FindGameObjectInChildren("Interact"), "Conversation Control");
-            CallMethodProper callAction = (CallMethodProper)convo.GetState("Greet").Actions[1];
+            CallMethodProper callAction = (CallMethodProper)convo.GetValidState("Greet").Actions[1];
             callAction.parameters[1].SetValue("GolfTrophy");
             callAction.parameters[0].SetValue("TROPHY");
             convo.ChangeTransition("Greet", "CONVO_FINISH", "Talk Finish");
@@ -1616,7 +1615,7 @@ namespace MilliGolf {
                 areaTitleVars.GetFsmString("Title Main").Value = pbTracker.score.ToString();
                 areaTitleVars.GetFsmString("Title Sub").Value = "";
                 areaTitleVars.GetFsmBool("Title Has Subscript").Value = false;
-                areaTitleVars.GetFsmBool("Title Has Superscript").Value = (pbTracker.isPB ? true : false);
+                areaTitleVars.GetFsmBool("Title Has Superscript").Value = pbTracker.isPB;
             }
             pbTracker.isActivelyScoring = false;
             Finish();

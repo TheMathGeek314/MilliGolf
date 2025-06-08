@@ -13,5 +13,4 @@ The Milligolf content can be used as a Randomizer 4 connection, which allows pla
 - Randomize global goals. Milligolf does have special achievements for clearing all courses in less than N hits. The obtention of said marks can be randomized, making you obtain an item when reaching the course thresholds and checking the scoreboard instead.
 - Randomize course transitions, which will add the tent door as well as all the individual course doors to the transition pool for room or door randomizers.
 
-Note that Course Completion and Course Transitions should not be both enabled; using both will cause
-generation to fail. This is a known limitation that may be removed in future versions.
+Note that enabling Door Rando (from TrandoPlus), Course Access and Course Transitions currently causes generation to enter an infinite loop.

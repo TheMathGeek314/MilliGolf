@@ -389,6 +389,7 @@ namespace MilliGolf {
             GolfManager.SaveSettings.randoSettings.CourseAccess = GolfManager.GlobalSettings.CourseAccess;
             GolfManager.SaveSettings.randoSettings.CourseCompletion = GolfManager.GlobalSettings.CourseCompletion;
             GolfManager.SaveSettings.randoSettings.GlobalGoals = GolfManager.GlobalSettings.GlobalGoals;
+            GolfManager.SaveSettings.randoSettings.CourseTransitions = GolfManager.GlobalSettings.CourseTransitions;
             startGameSetup();
         }
 
@@ -482,9 +483,9 @@ namespace MilliGolf {
                 canWarpState.RemoveAction(2);
                 canWarpState.InsertAction(isGolfingNoEssence, 2);
                 //deny warping out of Hall
-                isInGolfHallBool inHall = new();
-                inHall.isTrue = FsmEvent.GetFsmEvent("FAIL");
-                canWarpState.InsertAction(inHall, 9);
+                isDreamgatingForbidden noGating = new();
+                noGating.isTrue = FsmEvent.GetFsmEvent("FAIL");
+                canWarpState.InsertAction(noGating, 9);
                 //set destination
                 canWarpState.InsertAction(new setDreamReturnScene(), 7);
                 isGolfingBool isGoBoo = new();
@@ -1434,10 +1435,10 @@ namespace MilliGolf {
         }
     }
 
-    public class isInGolfHallBool: FsmStateAction {
+    public class isDreamgatingForbidden: FsmStateAction {
         public FsmEvent isTrue;
         public override void OnEnter() {
-            if(MilliGolf.isInGolfRoom && GameManager.instance.sceneName == "GG_Workshop") {
+            if(MilliGolf.isInGolfRoom && (GameManager.instance.sceneName == "GG_Workshop" || (MilliGolf.golfData.randoSettings.Enabled && MilliGolf.golfData.randoSettings.CourseTransitions))) {
                 base.Fsm.Event(isTrue);
             }
             Finish();

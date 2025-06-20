@@ -44,3 +44,9 @@ The MilliGolf content can be used as a Randomizer 4 connection, which allows pla
 - Randomize course transitions, which will add the tent door as well as all the individual course doors to the transition pool for room or door randomizers.
 
 Warning: enabling Door Rando (from TrandoPlus), Course Access and Course Transitions will likely cause generation to take much longer than usual.
+
+#
+
+Credit to [nerthul](https://github.com/nerthul11) for most of the rando integration
+
+Credit to [Pimpas](https://github.com/dpinela) for the transition rando integration

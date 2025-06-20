@@ -754,7 +754,7 @@ namespace MilliGolf {
             // no collision so that they can enter from the other side
             // (only relevant for transition rando)
             bool accessRandomized = golfData.randoSettings.Enabled && golfData.randoSettings.CourseAccess;
-            if(accessRandomized && !golfData.randoSaveState.courseAccess.GetVariable<bool>(room.scene)) {
+            if(accessRandomized && !isCustom && !golfData.randoSaveState.courseAccess.GetVariable<bool>(room.scene)) {
                 GameObject dummy = new();
                 dummy.name = $"dummy transition from {room.scene}";
                 dummy.transform.position = new Vector3(x, y, 8.13f);

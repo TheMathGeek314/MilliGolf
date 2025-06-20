@@ -6,6 +6,7 @@ The Hollow Knight golf mod.
 
 You can create your own courses in any existing room through the *CustomCourses.json* file in your Mods folder. These courses do not track your high scores and will not be included in rando integrations.
 Two sample courses have been provided. You can reference them for information on how to format the course data.
+
 *Disclaimer - You cannot have more than one course use the same room*
 
 __Json Guide__

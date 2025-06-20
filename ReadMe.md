@@ -10,6 +10,7 @@ Two sample courses have been provided. You can reference them for information on
 *Disclaimer - You cannot have more than one course use the same room*
 
 __Json Guide__
+
 The following fields are required:
 - **name**: The name that appears over the door in the Hall of Golf
 - **scene**: The name of the room where you want to golf

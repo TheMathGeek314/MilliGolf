@@ -133,7 +133,12 @@ namespace MilliGolf {
             On.HeroController.CanDreamNail += DreamNailOverride;
             On.HeroController.CanDoubleJump += WingsOverride;
             On.DeactivateInDarknessWithoutLantern.Start += HazardRespawn;
-
+            // This needs to run after ItemChanger's hook when IC is installed,
+            // therefore we need to hook before IC does.
+            // While IC loads earlier due to load priority, it actually only
+            // installs its hook on this method upon loading or creating a save,
+            // so hooking here does allow us to beat IC to the punch.
+            On.GameManager.BeginSceneTransition += TransitionToGolfRoom;
             if (ModHooks.GetMod("ItemChangerMod") is Mod)
             {
                 GolfManager.AddICHooks();
@@ -148,6 +153,19 @@ namespace MilliGolf {
             {
                 self.gameObject.SetActive(true);
             }
+        }
+
+        internal const string golfTransitionSuffix = "_golf";
+        internal const string golfTentTransition = "room_milligolf";
+
+        private void TransitionToGolfRoom(On.GameManager.orig_BeginSceneTransition orig, GameManager self, GameManager.SceneLoadInfo info)
+        {
+            if (info.EntryGateName != null && info.EntryGateName.EndsWith(golfTransitionSuffix))
+            {
+                info.EntryGateName = info.EntryGateName.Substring(0, info.EntryGateName.Length - golfTransitionSuffix.Length);
+                doCustomLoad = true;
+            }
+            orig(self, info);
         }
 
         private bool DreamNailOverride(On.HeroController.orig_CanDreamNail orig, HeroController self)
@@ -371,6 +389,7 @@ namespace MilliGolf {
             GolfManager.SaveSettings.randoSettings.CourseAccess = GolfManager.GlobalSettings.CourseAccess;
             GolfManager.SaveSettings.randoSettings.CourseCompletion = GolfManager.GlobalSettings.CourseCompletion;
             GolfManager.SaveSettings.randoSettings.GlobalGoals = GolfManager.GlobalSettings.GlobalGoals;
+            GolfManager.SaveSettings.randoSettings.CourseTransitions = GolfManager.GlobalSettings.CourseTransitions;
             startGameSetup();
         }
 
@@ -464,9 +483,9 @@ namespace MilliGolf {
                 canWarpState.RemoveAction(2);
                 canWarpState.InsertAction(isGolfingNoEssence, 2);
                 //deny warping out of Hall
-                isInGolfHallBool inHall = new();
-                inHall.isTrue = FsmEvent.GetFsmEvent("FAIL");
-                canWarpState.InsertAction(inHall, 9);
+                isDreamgatingForbidden noGating = new();
+                noGating.isTrue = FsmEvent.GetFsmEvent("FAIL");
+                canWarpState.InsertAction(noGating, 9);
                 //set destination
                 canWarpState.InsertAction(new setDreamReturnScene(), 7);
                 isGolfingBool isGoBoo = new();
@@ -530,8 +549,21 @@ namespace MilliGolf {
                         golfTransition.SetActive(true);
                         PlayMakerFSM doorControlFSM = PlayMakerFSM.FindFsmOnGameObject(golfTransition, "Door Control");
                         FsmState changeSceneState = doorControlFSM.GetValidState("Change Scene");
-                        ((BeginSceneTransition)changeSceneState.GetAction(1)).sceneName = "GG_Workshop";
-                        changeSceneState.InsertAction(new setCustomLoad(true), 1);
+                        BeginSceneTransition changeSceneAction = ((BeginSceneTransition)changeSceneState.GetAction(1));
+                        changeSceneAction.sceneName = "GG_Workshop";
+                        changeSceneAction.entryGateName = "left1" + golfTransitionSuffix;
+                        // The default name of the door includes (Clone)(Clone),
+                        // which is not valid in rando logic. We could alias it
+                        // just for rando, but why complicate things?
+                        TransitionPoint door = golfTransition.GetComponent<TransitionPoint>();
+                        door.name = golfTentTransition;
+                        // These are not needed for the transition to work normally,
+                        // but in transition rando ItemChanger looks at TransitionPoints to determine
+                        // which gate we're going through so it can know what to redirect us to,
+                        // so this info needs to be correct.
+                        door.targetScene = "GG_Workshop";
+                        door.entryPoint = "left1" + golfTransitionSuffix;
+                        golfTransition.GetComponent<TransitionPoint>().name = golfTentTransition;
                         GameObject golfTent = GameObject.Instantiate(prefabs["Town"]["divine_tent"], new Vector3(205.1346f, 13.1462f, 47.2968f), Quaternion.identity);
                         setupTentPrefab(golfTent);
                         golfTent.GetComponent<PlayMakerFSM>().enabled = false;
@@ -596,10 +628,9 @@ namespace MilliGolf {
                             disableTransition(tp.gameObject);
                         }
                         else {
-                            tp.name += "_golf";
+                            tp.name += golfTransitionSuffix;
                             tp.targetScene = "GG_Workshop";
-                            tp.entryPoint = "door" + (tempList.IndexOf(self.sceneName) + (isInUnofficialCourse ? 19 : 1));
-                            tp.OnBeforeTransition += setCustomLoad.setCustomLoadTrue;
+                            tp.entryPoint = "door" + (tempList.IndexOf(self.sceneName) + (isInUnofficialCourse ? 19 : 1)) + golfTransitionSuffix;
                         }
                     }
                     GameObject[] allGameObjects = GameObject.FindObjectsOfType<GameObject>();
@@ -684,6 +715,21 @@ namespace MilliGolf {
                     foreach(BossStatue bs in statues) {
                         bs.gameObject.SetActive(false);
                     }
+                    TransitionPoint[] transitions = GameObject.FindObjectsOfType<TransitionPoint>();
+                    foreach(TransitionPoint tp in transitions) {
+                        if (tp.name == "left1") {
+                            tp.targetScene = "Town";
+                            tp.entryPoint = golfTentTransition;
+                            tp.OnBeforeTransition += setCustomLoad.setCustomLoadFalse;
+                        }
+                        // ensure that these transitions are
+                        // treated as distinct for randomization
+                        // purposes when the player actually
+                        // goes through them, while still allowing
+                        // them to have the original name while
+                        // loading
+                        tp.name += golfTransitionSuffix;
+                    }
                     GameObject[] gos = GameObject.FindObjectsOfType<GameObject>();
                     foreach(GameObject go in gos) {
                         if(go.name.StartsWith("BG_pillar") || go.name.Contains("clouds") || go.name == "gg_plat_float_wide") {
@@ -705,12 +751,6 @@ namespace MilliGolf {
                     else {
                         addQuirrel(19.7f, 6.81f, true, "HALL");
                     }
-
-                    TransitionPoint workshopExit = GameObject.Find("left1").GetComponent<TransitionPoint>();
-                    workshopExit.name += "_golf";
-                    workshopExit.targetScene = "Town";
-                    workshopExit.entryPoint = "room_divine(Clone)(Clone)";
-                    workshopExit.OnBeforeTransition += setCustomLoad.setCustomLoadFalse;
                 }
             }
             doCustomLoad = false;
@@ -748,9 +788,22 @@ namespace MilliGolf {
         }
 
         public static void placeDoor(float x, float y, GolfScene room, bool isCustom) {
+            string transitionName = "door" + (isCustom ? (GolfScene.customCourseList.IndexOf(room.scene) + 19) : (GolfScene.courseList.IndexOf(room.scene) + 1));
+            // If the player doesn't have the access, still create a dummy transition point with
+            // no collision so that they can enter from the other side
+            // (only relevant for transition rando)
             bool accessRandomized = golfData.randoSettings.Enabled && golfData.randoSettings.CourseAccess;
             if (accessRandomized && !golfData.randoSaveState.courseAccess.GetVariable<bool>(room.scene))
+            {
+                GameObject dummy = new();
+                dummy.name = $"dummy transition from {room.scene}";
+                dummy.transform.position = new Vector3(x, y, 8.13f);
+                TransitionPoint dummyTP = dummy.AddComponent<TransitionPoint>();
+                dummyTP.name = transitionName;
+                dummyTP.nonHazardGate = true;
+                dummy.SetActive(true);
                 return;
+            }
 
             GameObject.Instantiate(prefabs["GG_Atrium"]["GG_big_door_part_small"], new Vector3(x, y, 8.13f), Quaternion.identity).SetActive(true);
 
@@ -764,16 +817,19 @@ namespace MilliGolf {
 
             GameObject transition = GameObject.Instantiate(prefabs["GG_Atrium"]["Door_Workshop"], new Vector3(x - 0.2f, y - 1.92f, 0.2f), Quaternion.identity);
             TransitionPoint tp = transition.GetComponent<TransitionPoint>();
-            string transitionName = "door" + (isCustom ? (GolfScene.customCourseList.IndexOf(room.scene) + 19) : (GolfScene.courseList.IndexOf(room.scene) + 1));
             transition.name = tp.name = transitionName;
+            // Like in the main tent door, set the target room and gate so ItemChanger
+            // can find them when redirecting this transition.
+            tp.targetScene = room.scene;
+            tp.entryPoint = room.startTransition + golfTransitionSuffix;
             transition.SetActive(true);
             PlayMakerFSM doorControlFSM = PlayMakerFSM.FindFsmOnGameObject(transition, "Door Control");
             FsmState changeSceneState = doorControlFSM.GetValidState("Change Scene");
             BeginSceneTransition enterAction = (BeginSceneTransition)(changeSceneState.GetAction(0));
             enterAction.sceneName = room.scene;
-            enterAction.entryGateName = room.startTransition;
-            changeSceneState.InsertAction(new setCustomLoad(true), 0);
-            changeSceneState.InsertAction(new setGate(transitionName), 1);
+            enterAction.entryGateName = room.startTransition + golfTransitionSuffix;
+            // TODO: add back setting the gate... somewhere?
+            // maybe not needed?
             FsmState inRangeState = doorControlFSM.GetValidState("In Range");
             ((renameEnterLabel)inRangeState.GetAction(1)).newName = room.name;
         }
@@ -1378,10 +1434,10 @@ namespace MilliGolf {
         }
     }
 
-    public class isInGolfHallBool: FsmStateAction {
+    public class isDreamgatingForbidden: FsmStateAction {
         public FsmEvent isTrue;
         public override void OnEnter() {
-            if(MilliGolf.isInGolfRoom && GameManager.instance.sceneName == "GG_Workshop") {
+            if(MilliGolf.isInGolfRoom && (GameManager.instance.sceneName == "GG_Workshop" || (MilliGolf.golfData.randoSettings.Enabled && MilliGolf.golfData.randoSettings.CourseTransitions))) {
                 base.Fsm.Event(isTrue);
             }
             Finish();

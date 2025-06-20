@@ -782,8 +782,11 @@ namespace MilliGolf {
             BeginSceneTransition enterAction = (BeginSceneTransition)(changeSceneState.GetAction(0));
             enterAction.sceneName = room.scene;
             enterAction.entryGateName = room.startTransition + golfTransitionSuffix;
-            // TODO: add back setting the gate... somewhere?
-            // maybe not needed?
+            // If course transitions are enabled, dreamgating from courses
+            // is disabled, so we don't need to set a gate.
+            if (!(golfData.randoSettings.Enabled && golfData.randoSettings.CourseTransitions)) {
+                changeSceneState.InsertAction(new setGate(transitionName), 1);
+            }
             FsmState inRangeState = doorControlFSM.GetValidState("In Range");
             ((renameEnterLabel)inRangeState.GetAction(1)).newName = room.name;
         }

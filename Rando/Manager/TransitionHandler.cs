@@ -151,10 +151,10 @@ namespace MilliGolf.Rando.Manager
                     Sides = TransitionSides.Both,
                 }
             ));
-            for (int i = 0; i < golfScene.courseList.Count; i++)
+            for (int i = 0; i < GolfScene.courseList.Count; i++)
             {
-                string scene = golfScene.courseList[i];
-                golfScene gs = golfScene.courseDict[scene];
+                string scene = GolfScene.courseList[i];
+                GolfScene gs = GolfScene.courseDict[scene];
                 TransitionDirection otherSideDir = GetOrigTransitionDirection(rb, scene, gs.startTransition);
                 // Door rando expects all door transitions to go sideways
                 // (since all vanilla ones do). We work around that by lying about

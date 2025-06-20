@@ -32,8 +32,8 @@ namespace MilliGolf.Rando.Manager
                 lmb.GetOrAddTerm($"Milligolf_Complete-{name}");
                 lmb.AddItem(new StringItemTemplate($"Course_Completion-{name}", $"Milligolf_Complete-{name}++"));
 
-                int doorIndex = golfScene.courseList.IndexOf(scene) + 1;
-                string returnTransition = $"{scene}[{golfScene.courseDict[scene].startTransition}{MilliGolf.golfTransitionSuffix}]";
+                int doorIndex = GolfScene.courseList.IndexOf(scene) + 1;
+                string returnTransition = $"{scene}[{GolfScene.courseDict[scene].startTransition}{MilliGolf.golfTransitionSuffix}]";
 
                 lmb.AddTransition(new RawLogicDef($"GG_Workshop[door{doorIndex}{MilliGolf.golfTransitionSuffix}]", $"GG_Workshop[left1{MilliGolf.golfTransitionSuffix}] + Milligolf_Access-{name}"));
                 lmb.AddTransition(new RawLogicDef(returnTransition, returnTransition));

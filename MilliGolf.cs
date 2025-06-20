@@ -5,6 +5,7 @@ using UnityEngine.SceneManagement;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using HutongGames.PlayMaker;
 using HutongGames.PlayMaker.Actions;
@@ -20,6 +21,7 @@ namespace MilliGolf {
     public class MilliGolf: Mod, ILocalSettings<LocalGolfSettings>, IGlobalSettings<GolfRandoSettings> {
         public static bool doCustomLoad = false;
         public static bool isInGolfRoom = false;
+        public static bool isInUnofficialCourse = false;
         public static bool wasInCustomRoom = false;
         public static bool hasLoggedProgression = false;
         public static bool isStubbornLocked = false;
@@ -37,10 +39,12 @@ namespace MilliGolf {
         public static PlayMakerFSM areaTitleRef;
 
         private static MilliGolf _instance;
+
         public MilliGolf() : base()
         {
             _instance = this;
         }
+
         internal static MilliGolf Instance
         {
             get
@@ -52,14 +56,17 @@ namespace MilliGolf {
                 return _instance;
             }
         }
+
         new public string GetName() => "MilliGolf";
-        public override string GetVersion() => "1.2.0.3";
+        public override string GetVersion() => "1.3.0.0a";
+
         public static LocalGolfSettings golfData { get; set; } = new();
         public void OnLoadLocal(LocalGolfSettings g) => golfData = g;
         public LocalGolfSettings OnSaveLocal() => golfData;
         public static GolfRandoSettings GS { get; set; } = new();
         public void OnLoadGlobal(GolfRandoSettings s) => GS = s;
         public GolfRandoSettings OnSaveGlobal() => GS;
+
         public delegate void BoardCheck(int score);
         public static event BoardCheck OnBoardCheck;
         public delegate string AttunedPreview();
@@ -72,6 +79,7 @@ namespace MilliGolf {
         public static event MasterPreview OnMasterPreview;
         public delegate string GrandmasterPreview();
         public static event GrandmasterPreview OnGrandmasterPreview;
+
         public override void Initialize(Dictionary<string, Dictionary<string, GameObject>> preloadedObjects) {
             UnityEngine.SceneManagement.SceneManager.activeSceneChanged += earlySceneChange;
             On.GameManager.OnNextLevelReady += lateSceneChange;
@@ -92,7 +100,18 @@ namespace MilliGolf {
             millibellePrefab.FindGameObjectInChildren("Content Audio").SetActive(false);
             millibellePrefab.AddComponent(typeof(collisionDetector));
 
-            createCourseData();
+            Assembly assembly = Assembly.GetExecutingAssembly();
+            string defaultCourses = assembly.GetManifestResourceNames().Single(str => str.EndsWith("DefaultCourses.json"));
+            Stream defaultCourseStream = assembly.GetManifestResourceStream(defaultCourses);
+            foreach(GolfJsonScene gScene in new ParseJson(defaultCourseStream).parseCourses()) {
+                gScene.translate().create(false);
+            }
+            string jsonFileName = Path.GetDirectoryName(assembly.Location) + "/CustomCourses.json";
+            if(File.Exists(jsonFileName)) {
+                foreach(GolfJsonScene gcScene in new ParseJson(jsonFileName).parseCourses()) {
+                    gcScene.translate().create(true);
+                }
+            }
 
             // Only make a Rando Integration if Randomizer 4 is active.
             if (ModHooks.GetMod("Randomizer 4") is Mod)
@@ -114,6 +133,7 @@ namespace MilliGolf {
             On.HeroController.CanDreamNail += DreamNailOverride;
             On.HeroController.CanDoubleJump += WingsOverride;
             On.DeactivateInDarknessWithoutLantern.Start += HazardRespawn;
+
             if (ModHooks.GetMod("ItemChangerMod") is Mod)
             {
                 GolfManager.AddICHooks();
@@ -188,7 +208,7 @@ namespace MilliGolf {
                 !self.cState.bouncing && 
                 !self.cState.shroomBouncing && 
                 !self.cState.onGround
-                );
+            );
 
             return orig(self) || (boolessWings && isInGolfRoom);
         }
@@ -254,7 +274,7 @@ namespace MilliGolf {
                 (self.cState.falling || self.cState.wallSliding) && 
                 !self.cState.doubleJumping && 
                 self.CanInput()
-                );
+            );
             
             return orig(self) || (canSlide && isInGolfRoom);
         }
@@ -277,7 +297,7 @@ namespace MilliGolf {
                 (self.cState.falling || self.cState.wallSliding) && 
                 !self.cState.doubleJumping && 
                 self.CanInput()
-                );
+            );
 
             if (canSlide && !self.cState.attacking)
             {
@@ -321,7 +341,7 @@ namespace MilliGolf {
                 !self.cState.preventDash &&
                 (self.cState.onGround || !ReflectionHelper.GetField<HeroController, bool>(self, "airDashed") || self.cState.wallSliding) &&
                 !self.cState.hazardDeath
-                );
+            );
             return orig(self) || (boolessDash && isInGolfRoom);
         }
 
@@ -520,8 +540,11 @@ namespace MilliGolf {
                 }
             }
             else if(to.name == "GG_Workshop" && doCustomLoad) {
-                for(int i = 0; i < golfScene.courseList.Count; i++) {
-                    placeDoor(i * 10 + 27, 7.68f, golfScene.courseDict[golfScene.courseList[i]]);
+                for(int i = 0; i < GolfScene.courseList.Count; i++) {
+                    placeDoor(i * 10 + 27, 7.68f, GolfScene.courseDict[GolfScene.courseList[i]], false);
+                }
+                for(int j = 0; j < GolfScene.customCourseList.Count; j++) {
+                    placeDoor(j * 10 + 27, 37.68f, GolfScene.customCourseDict[GolfScene.customCourseList[j]], true);
                 }
             }
         }
@@ -529,47 +552,53 @@ namespace MilliGolf {
         private void lateSceneChange(On.GameManager.orig_OnNextLevelReady orig, GameManager self) {
             orig(self);
             isInGolfRoom = false;
+            isInUnofficialCourse = false;
             ballCam = 0;
             isStubbornLocked = false;
             if(doCustomLoad) {
                 addDialogue();
                 wasInCustomRoom = true;
-                if(golfScene.courseList.Contains(self.sceneName)) {
+                bool officialContainsName = GolfScene.courseList.Contains(self.sceneName);
+                bool unofficialContainsName = GolfScene.customCourseList.Contains(self.sceneName) && !officialContainsName;
+                if(officialContainsName || unofficialContainsName) {
                     isInGolfRoom = true;
+                    isInUnofficialCourse = unofficialContainsName;
+                    Dictionary<string, GolfScene> tempDict = isInUnofficialCourse ? GolfScene.customCourseDict : GolfScene.courseDict;
+                    List<string> tempList = isInUnofficialCourse ? GolfScene.customCourseList : GolfScene.courseList;
                     currentScore = 0;
                     GameCameras.instance.geoCounter.geoTextMesh.text = currentScore.ToString();
                     HeroController.instance.gameObject.FindGameObjectInChildren("Vignette").SetActive(false);
-                    currentHoleTarget = golfScene.courseDict[self.sceneName].holeTarget;
-                    if(golfScene.courseDict[self.sceneName].millibelleSpawn != null) {
-                        millibelleRef = GameObject.Instantiate(prefabs["Ruins_Bathhouse"]["Banker Spa NPC"], golfScene.courseDict[self.sceneName].millibelleSpawn, Quaternion.identity);
+                    currentHoleTarget = tempDict[self.sceneName].holeTarget;
+                    if(tempDict[self.sceneName].millibelleSpawn != null) {
+                        millibelleRef = GameObject.Instantiate(prefabs["Ruins_Bathhouse"]["Banker Spa NPC"], tempDict[self.sceneName].millibelleSpawn, Quaternion.identity);
                         millibelleRef.SetActive(true);
                         millibelleRef.GetComponent<MeshRenderer>().sortingOrder = 1;
                     }
-                    if(golfScene.courseDict[self.sceneName].hasQuirrel) {
-                        (float, float, bool, string) qd = golfScene.courseDict[self.sceneName].quirrelData;
+                    if(!isInUnofficialCourse && tempDict[self.sceneName].hasQuirrel) {
+                        (float, float, bool, string) qd = tempDict[self.sceneName].quirrelData;
                         GameObject quirrel = addQuirrel(qd.Item1, qd.Item2, qd.Item3, qd.Item4);
                         if(self.sceneName == "Town") {
                             PlayMakerFSM.FindFsmOnGameObject(quirrel,"npc_control").FsmVariables.GetFsmFloat("Move To Offset").SafeAssign(1);
                         }
                     }
-                    (string, float, float) fd = golfScene.courseDict[self.sceneName].flagData;
+                    (string, float, float) fd = tempDict[self.sceneName].flagData;
                     addFlag(fd.Item1, fd.Item2, fd.Item3);
-                    if(golfScene.courseDict[self.sceneName].customHoleObject) {
-                        GameObject customHole = GameObject.Instantiate(prefabs["Fungus2_06"]["GameObject"], golfScene.courseDict[self.sceneName].customHolePosition.Item1, Quaternion.identity);
-                        customHole.transform.localScale = golfScene.courseDict[self.sceneName].customHolePosition.Item2;
+                    if(tempDict[self.sceneName].customHoleObject) {
+                        GameObject customHole = GameObject.Instantiate(prefabs["Fungus2_06"]["GameObject"], tempDict[self.sceneName].customHolePosition.Item1, Quaternion.identity);
+                        customHole.transform.localScale = tempDict[self.sceneName].customHolePosition.Item2;
                         customHole.layer = LayerMask.NameToLayer("Terrain");
                         customHole.name = "Custom Hole";
                         customHole.SetActive(true);
                     }
                     TransitionPoint[] transitions = GameObject.FindObjectsOfType<TransitionPoint>();
                     foreach(TransitionPoint tp in transitions) {
-                        if(tp.gameObject.name != golfScene.courseDict[self.sceneName].startTransition) {
+                        if(tp.gameObject.name != tempDict[self.sceneName].startTransition) {
                             disableTransition(tp.gameObject);
                         }
                         else {
                             tp.name += "_golf";
                             tp.targetScene = "GG_Workshop";
-                            tp.entryPoint = "door" + (golfScene.courseList.IndexOf(self.sceneName) + 1);
+                            tp.entryPoint = "door" + (tempList.IndexOf(self.sceneName) + (isInUnofficialCourse ? 19 : 1));
                             tp.OnBeforeTransition += setCustomLoad.setCustomLoadTrue;
                         }
                     }
@@ -633,13 +662,13 @@ namespace MilliGolf {
                             go.SetActive(false);
                         }
 
-                        if(golfScene.courseDict[self.sceneName].objectsToDisable.Contains(go.name)) {
+                        if(tempDict[self.sceneName].objectsToDisable.Contains(go.name)) {
                             go.SetActive(false);
                         }
-                        if(golfScene.courseDict[self.sceneName].childrenToDisable.ContainsKey(go.name)) {
-                            List<string> parents = new(golfScene.courseDict[self.sceneName].childrenToDisable.Keys);
+                        if(tempDict[self.sceneName].childrenToDisable.ContainsKey(go.name)) {
+                            List<string> parents = new(tempDict[self.sceneName].childrenToDisable.Keys);
                             foreach(string parent in parents) {
-                                List<string> children = golfScene.courseDict[self.sceneName].childrenToDisable[parent];
+                                List<string> children = tempDict[self.sceneName].childrenToDisable[parent];
                                 foreach(string child in children) {
                                     go.FindGameObjectInChildren(child).SetActive(false);
                                 }
@@ -649,6 +678,7 @@ namespace MilliGolf {
                 }
                 else if(self.sceneName == "GG_Workshop") {
                     isInGolfRoom = true;
+                    isInUnofficialCourse = false;
                     calculateTotalScore();
                     BossStatue[] statues = GameObject.FindObjectsOfType<BossStatue>();
                     foreach(BossStatue bs in statues) {
@@ -686,150 +716,6 @@ namespace MilliGolf {
             doCustomLoad = false;
         }
 
-        public static void createCourseData() {
-            golfScene dirtmouth = new("Dirtmouth", "Town", "left1", "bot1");
-            dirtmouth.doorColor = new Color(0.156f, 0.2f, 0.345f, 0.466f);
-            dirtmouth.millibelleSpawn = new Vector3(11, 44.8f, 0.006f);
-            dirtmouth.knightSpawn = new Vector3(4.2f, 44.4f, 0.004f);
-            dirtmouth.hasQuirrel = true;
-            dirtmouth.quirrelData = (7.6f, 44.81f, true, "DIRTMOUTH");
-            dirtmouth.flagData = ("flagSignSW", 188.4f, 8.81f);
-
-            golfScene crossroads = new("Forgotten Crossroads", "Crossroads_07", "right1", "bot1");
-            crossroads.doorColor = new Color(0.4054f, 0.4264f, 0.8f, 0.466f);
-            crossroads.millibelleSpawn = new Vector3(36, 82.8f, 0.006f);
-            crossroads.knightSpawn = new Vector3(40.8f, 82.4f, 0.004f);
-            crossroads.flagData = ("flagSignSW", 23.2f, 4.81f);
-
-            golfScene grounds = new("Resting Grounds", "RestingGrounds_05", "left2", "bot1");
-            grounds.doorColor = new Color(0.5309f, 0.5961f, 0.9054f, 0.466f);
-            grounds.millibelleSpawn = new Vector3(17, 78.8f, 0.006f);
-            grounds.knightSpawn = new Vector3(4.8f, 78.4f, 0.004f);
-            grounds.objectsToDisable.Add("grave_tall_pole_sil (2)");
-            grounds.flagData = ("flagSignE", 29.8f, 3.81f);
-            
-            golfScene hive = new("The Hive", "Hive_03", "right1", "bot1");
-            hive.doorColor = new Color(1, 0.7516f, 0.3917f, 0.466f);
-            hive.millibelleSpawn = new Vector3(129.5f, 143.8f, 0.006f);
-            hive.knightSpawn = new Vector3(137.7f, 143.4f, 0.004f);
-            hive.objectsToDisable.Add("Flamebearer Spawn");
-            hive.hasQuirrel = true;
-            hive.quirrelData = (120.4f, 143.81f, false, "HIVE");
-            hive.flagData = ("flagSignSW", 80.4f, 112.81f);
-
-            golfScene greenpath = new("Greenpath", "Fungus1_31", "right1", "bot1");
-            greenpath.doorColor = new Color(0.3909f, 0.6868f, 0.3696f, 0.466f);
-            greenpath.millibelleSpawn = new Vector3(31, 115.8f, 0.006f);
-            greenpath.knightSpawn = new Vector3(33.7f, 115.4f, 0.004f);
-            greenpath.objectsToDisable.Add("Toll Gate");
-            greenpath.objectsToDisable.Add("Toll Gate (1)");
-            greenpath.objectsToDisable.Add("Toll Gate Machine");
-            greenpath.objectsToDisable.Add("Toll Gate Machine (1)");
-            greenpath.hasQuirrel = true;
-            greenpath.quirrelData = (23.3f, 107.81f, false, "GREENPATH");
-            greenpath.flagData = ("flagSignSE", 17.4f, 3.81f);
-
-            golfScene canyon = new("Fog Canyon", "Fungus3_02", "left1", "Custom Hole");
-            canyon.doorColor = new Color(0.7909f, 0.7161f, 1, 0.466f);
-            canyon.millibelleSpawn = new Vector3(6, 94.8f, 0.006f);
-            canyon.knightSpawn = new Vector3(2.3f, 94.4f, 0.004f);
-            canyon.customHoleObject = true;
-            canyon.customHolePosition = (new Vector3(6.45f, 5.3f), new Vector3(3.02f, 0.6f));
-            canyon.flagData = ("flagSignW", 11.9f, 4.81f);
-            
-            golfScene edge = new("Kingdom's Edge", "Deepnest_East_11", "right1", "bot1");
-            edge.doorColor = new Color(0.6709f, 0.8761f, 1, 0.466f);
-            edge.millibelleSpawn = new Vector3(101, 119.8f, 0.006f);
-            edge.knightSpawn = new Vector3(107.8f, 119.4f, 0.004f);
-            edge.objectsToDisable.Add("Spawn 1");
-            edge.hasQuirrel = true;
-            edge.quirrelData = (91.5f, 119.81f, true, "EDGE");
-            edge.flagData = ("flagSignSE", 33.1f, 42.81f);
-
-            golfScene waterways = new("Royal Waterways", "Waterways_02", "top1", "bot2");
-            waterways.doorColor = new Color(0.1887f, 0.4961f, 0.52f, 0.466f);
-            waterways.millibelleSpawn = new Vector3(69, 28.8f, 0.006f);
-            waterways.knightSpawn = new Vector3(65, 28.4f, 0.004f);
-            waterways.objectsToDisable.Add("RestBench");
-            waterways.flagData = ("flagSignSE", 216, 3.81f);
-
-            golfScene cliffs = new("Howling Cliffs", "Cliffs_01", "right1", "right3");
-            cliffs.doorColor = new Color(0.2509f, 0.3761f, 0.5254f, 0.466f);
-            cliffs.millibelleSpawn = new Vector3(133, 143.8f, 0.006f);
-            cliffs.knightSpawn = new Vector3(137.7f, 143.4f, 0.004f);
-            cliffs.objectsToDisable.Add("Tut_tablet_top");
-            cliffs.flagData = ("flagSignE", 114.6f, 7.81f);
-
-            golfScene abyss = new("The Abyss", "Abyss_06_Core", "top1", "bot1");
-            abyss.doorColor = new Color(0, 0, 0, 0.466f);
-            abyss.millibelleSpawn = new Vector3(85, 256.8f, 0.006f);
-            abyss.knightSpawn = new Vector3(90, 256.4f, 0.004f);
-            abyss.childrenToDisable.Add("abyss_door", new List<string> { "Gate", "Collider" });
-            abyss.objectsToDisable.Add("floor_closed");
-            abyss.objectsToDisable.Add("Shade Sibling Spawner");
-            abyss.objectsToDisable.Add("Tut_tablet_Abyss");
-            abyss.flagData = ("flagSignSW", 30.6f, 3.81f);
-
-            golfScene fungal = new("Fungal Wastes", "Fungus2_12", "left1", "bot1");
-            fungal.doorColor = new Color(0.1509f, 0.3087f, 0.64f, 0.466f);
-            fungal.secondaryDoorColor = new Color(0.6709f, 0.6087f, 0, 0.466f);
-            fungal.millibelleSpawn = new Vector3(9, 7.8f, 0.006f);
-            fungal.knightSpawn = new Vector3(2.3f, 7.4f, 0.004f);
-            fungal.flagData = ("flagSignSW", 94.3f, 3.81f);
-
-            golfScene sanctum = new("Soul Sanctum", "Ruins1_30", "left2", "bot1");
-            sanctum.doorColor = new Color(0.6709f, 0.7361f, 1, 0.466f);
-            sanctum.millibelleSpawn = new Vector3(10, 3.8f, 0.006f);
-            sanctum.knightSpawn = new Vector3(2.2f, 3.4f, 0.004f);
-            sanctum.flagData = ("flagSignSE", 53.5f, 3.81f);
-
-            golfScene basin = new("Ancient Basin", "Abyss_04", "top1", "bot1");
-            basin.doorColor = new Color(0.5109f, 0.4761f, 0.4654f, 0.466f);
-            basin.millibelleSpawn = new Vector3(49, 83.8f, 0.006f);
-            basin.knightSpawn = new Vector3(56, 87.1f, 0.004f);
-            basin.objectsToDisable.Add("black_grass3 (2)");
-            basin.objectsToDisable.Add("Fountain Donation");
-            basin.flagData = ("flagSignSE", 54.8f, 8.81f);
-
-            golfScene qg = new("Queen's Gardens", "Fungus3_04", "left1", "right2");
-            qg.doorColor = new Color(0.4709f, 1, 0.5254f, 0.466f);
-            qg.millibelleSpawn = new Vector3(27, 83.8f, 0.006f);
-            qg.knightSpawn = new Vector3(2.3f, 83.4f, 0.004f);
-            qg.objectsToDisable.Add("Ruins Lever");
-            qg.objectsToDisable.Add("Garden Slide Floor");
-            qg.flagData = ("flagSignE", 31.3f, 5.81f);
-
-            golfScene city = new("City of Tears", "Ruins1_03", "right1", "left1");
-            city.doorColor = new Color(0.2909f, 0.4561f, 1, 0.466f);
-            city.millibelleSpawn = new Vector3(138, 40.8f, 0.006f);
-            city.knightSpawn = new Vector3(145.8f, 40.4f, 0.004f);
-            city.objectsToDisable.Add("Direction Pole Bench");
-            city.flagData = ("flagSignW", 5.2f, 8.81f);
-
-            golfScene deepnest = new("Deepnest", "Deepnest_35", "top1", "bot1");
-            deepnest.doorColor = new Color(0.1298f, 0.1509f, 0.28f, 0.466f);
-            deepnest.millibelleSpawn = new Vector3(41, 103.8f, 0.006f);
-            deepnest.knightSpawn = new Vector3(35, 103.4f, 0.004f);
-            deepnest.flagData = ("flagSignSW", 20.3f, 3.81f);
-
-            golfScene peak = new("Crystal Peak", "Mines_23", "right1", "left1");
-            peak.doorColor = new Color(1, 0.6372f, 1, 0.466f);
-            peak.millibelleSpawn = new Vector3(170, 27.8f, 0.006f);
-            peak.knightSpawn = new Vector3(177.8f, 27.4f, 0.004f);
-            peak.objectsToDisable.Add("brk_barrel_04");
-            peak.objectsToDisable.Add("crystal_barrel_03");
-            peak.objectsToDisable.Add("Crown Door");
-            peak.objectsToDisable.Add("Crown_SecretMask");
-            peak.flagData = ("flagSignNW", 8.8f, 9.81f);
-
-            golfScene palace = new("White Palace", "White_Palace_19", "top1", "left1");
-            palace.doorColor = new Color(0.85f, 0.85f, 1, 0.466f);
-            palace.millibelleSpawn = new Vector3(14, 157.8f, 0.006f);
-            palace.knightSpawn = new Vector3(18, 163.3f, 0.004f);
-            palace.objectsToDisable.Add("white_vine_01_silhouette (3)");
-            palace.flagData = ("flagSignW", 94.2f, 33.81f);
-        }
-
         public static void setupTentPrefab(GameObject tent) {
             List<string> toHide = new() {
                 "haze2 (3)",
@@ -861,7 +747,7 @@ namespace MilliGolf {
             }
         }
 
-        public static void placeDoor(float x, float y, golfScene room) {
+        public static void placeDoor(float x, float y, GolfScene room, bool isCustom) {
             bool accessRandomized = golfData.randoSettings.Enabled && golfData.randoSettings.CourseAccess;
             if (accessRandomized && !golfData.randoSaveState.courseAccess.GetVariable<bool>(room.scene))
                 return;
@@ -878,7 +764,7 @@ namespace MilliGolf {
 
             GameObject transition = GameObject.Instantiate(prefabs["GG_Atrium"]["Door_Workshop"], new Vector3(x - 0.2f, y - 1.92f, 0.2f), Quaternion.identity);
             TransitionPoint tp = transition.GetComponent<TransitionPoint>();
-            string transitionName = "door" + (golfScene.courseList.IndexOf(room.scene) + 1);
+            string transitionName = "door" + (isCustom ? (GolfScene.customCourseList.IndexOf(room.scene) + 19) : (GolfScene.courseList.IndexOf(room.scene) + 1));
             transition.name = tp.name = transitionName;
             transition.SetActive(true);
             PlayMakerFSM doorControlFSM = PlayMakerFSM.FindFsmOnGameObject(transition, "Door Control");
@@ -1066,8 +952,8 @@ namespace MilliGolf {
             bool accessRandomized = golfData.randoSettings.Enabled && golfData.randoSettings.CourseAccess;
             bool completionRandomized = golfData.randoSettings.Enabled && golfData.randoSettings.CourseCompletion;
             for(int i = 1; i < 10; i++) {
-                string sceneName = golfScene.courseDict[golfScene.courseList[i - 1]].name;
-                if (accessRandomized && !golfData.randoSaveState.courseAccess.GetVariable<bool>(golfScene.courseDict[golfScene.courseList[i - 1]].scene))
+                string sceneName = GolfScene.courseDict[GolfScene.courseList[i - 1]].name;
+                if (accessRandomized && !golfData.randoSaveState.courseAccess.GetVariable<bool>(GolfScene.courseDict[GolfScene.courseList[i - 1]].scene))
                 {
                     sceneName = "???";
                 }
@@ -1077,14 +963,14 @@ namespace MilliGolf {
                 excessLines.Add(children[i]);
             }
             for(int i = 12; i < 21; i++) {
-                string sceneName = golfScene.courseDict[golfScene.courseList[i - 12]].scene;
+                string sceneName = GolfScene.courseDict[GolfScene.courseList[i - 12]].scene;
                 string scoreText;
                 
                 if (!golfData.scoreboard.ContainsKey(sceneName))
                 {
                     scoreText = "---";
                 }
-                else if (completionRandomized && !golfData.randoSaveState.courseCompletion.GetVariable<bool>(golfScene.courseDict[golfScene.courseList[i - 12]].scene))
+                else if (completionRandomized && !golfData.randoSaveState.courseCompletion.GetVariable<bool>(GolfScene.courseDict[GolfScene.courseList[i - 12]].scene))
                 {
                     scoreText = "???";
                 }
@@ -1098,8 +984,8 @@ namespace MilliGolf {
             totalText.alignment = TextAnchor.MiddleRight;
             excessLines.Add(children[22]);
             for(int i = 23; i < 32; i++) {
-                string sceneName = golfScene.courseDict[golfScene.courseList[i - 14]].name;
-                if (accessRandomized && !golfData.randoSaveState.courseAccess.GetVariable<bool>(golfScene.courseDict[golfScene.courseList[i - 14]].scene))
+                string sceneName = GolfScene.courseDict[GolfScene.courseList[i - 14]].name;
+                if (accessRandomized && !golfData.randoSaveState.courseAccess.GetVariable<bool>(GolfScene.courseDict[GolfScene.courseList[i - 14]].scene))
                 {
                     sceneName = "???";
                 }
@@ -1107,13 +993,13 @@ namespace MilliGolf {
             }
             excessLines.Add(children[33]);
             for(int i = 34; i < 43; i++) {
-                string sceneName = golfScene.courseDict[golfScene.courseList[i - 25]].scene;
+                string sceneName = GolfScene.courseDict[GolfScene.courseList[i - 25]].scene;
                 string scoreText;
                 if (!golfData.scoreboard.ContainsKey(sceneName))
                 {
                     scoreText = "---";
                 }
-                else if (completionRandomized && !golfData.randoSaveState.courseCompletion.GetVariable<bool>(golfScene.courseDict[golfScene.courseList[i - 25]].scene))
+                else if (completionRandomized && !golfData.randoSaveState.courseCompletion.GetVariable<bool>(GolfScene.courseDict[GolfScene.courseList[i - 25]].scene))
                 {
                     scoreText = "???";
                 }
@@ -1280,13 +1166,18 @@ namespace MilliGolf {
         }
 
         public static void completedHole(string sceneName, int score) {
-            if(!golfData.scoreboard.ContainsKey(sceneName)) {
-                golfData.scoreboard.Add(sceneName, score);
-                pbTracker.update(score, true);
-            }
-            else if(golfData.scoreboard[sceneName] > score) {
-                golfData.scoreboard[sceneName] = score;
-                pbTracker.update(score, true);
+            if(!isInUnofficialCourse) {
+                if(!golfData.scoreboard.ContainsKey(sceneName)) {
+                    golfData.scoreboard.Add(sceneName, score);
+                    pbTracker.update(score, true);
+                }
+                else if(golfData.scoreboard[sceneName] > score) {
+                    golfData.scoreboard[sceneName] = score;
+                    pbTracker.update(score, true);
+                }
+                else {
+                    pbTracker.update(score, false);
+                }
             }
             else {
                 pbTracker.update(score, false);
@@ -1298,32 +1189,6 @@ namespace MilliGolf {
             }
             areaTitleRef.gameObject.SetActive(false);
             areaTitleRef.gameObject.SetActive(true);
-        }
-    }
-
-    public class golfScene {
-        public static List<string> courseList = new();
-        public static Dictionary<string, golfScene> courseDict = new();
-        public string name, scene, startTransition, holeTarget;
-        public Vector3 millibelleSpawn;
-        public Vector3 knightSpawn; //there's probably a better way to do this but eh
-        public Color doorColor;
-        public Color secondaryDoorColor;
-        public bool customHoleObject;
-        public (Vector3, Vector3) customHolePosition;
-        public bool hasQuirrel;
-        public (float, float, bool, string) quirrelData;
-        public (string, float, float) flagData;
-        public List<string> objectsToDisable = new();
-        public Dictionary<string, List<string>> childrenToDisable = new();
-
-        public golfScene(string name, string scene, string transition, string holeTarget) {
-            this.name = name;
-            this.scene = scene;
-            startTransition = transition;
-            this.holeTarget = holeTarget;
-            courseList.Add(scene);
-            courseDict.Add(scene, this);
         }
     }
 
@@ -1626,7 +1491,7 @@ namespace MilliGolf {
         public override void OnEnter() {
             string scene = GameManager.instance.sceneName;
             if(MilliGolf.isInGolfRoom && scene != "GG_Workshop") {
-                golfScene gScene = golfScene.courseDict[scene];
+                GolfScene gScene = GolfScene.courseDict[scene];
                 HeroController.instance.gameObject.transform.position = gScene.knightSpawn;
                 GameObject.Destroy(MilliGolf.millibelleRef.gameObject);
                 MilliGolf.millibelleRef = GameObject.Instantiate(MilliGolf.prefabs["Ruins_Bathhouse"]["Banker Spa NPC"], gScene.millibelleSpawn, Quaternion.identity);

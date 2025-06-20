@@ -1,0 +1,482 @@
+﻿[
+    {
+        "name": "Dirtmouth",
+        "scene": "Town",
+        "startTransition": "left1",
+        "holeTarget": "bot1",
+        "doorColor": {
+            "r": 0.156,
+            "g": 0.2,
+            "b": 0.345
+        },
+        "millibelleSpawn": {
+            "x": 11,
+            "y": 44.8
+        },
+        "knightSpawn": {
+            "x": 4.2,
+            "y": 44.4
+        },
+        "quirrelData": {
+            "x": 7.6,
+            "y": 44.81,
+            "faceRight": true,
+            "dialogueKey": "DIRTMOUTH"
+        },
+        "flagData": {
+            "filename": "flagSignSW",
+            "x": 188.4,
+            "y": 8.81
+        }
+    },
+    {
+        "name": "Forgotten Crossroads",
+        "scene": "Crossroads_07",
+        "startTransition": "right1",
+        "holeTarget": "bot1",
+        "doorColor": {
+            "r": 0.4054,
+            "g": 0.4264,
+            "b": 0.8
+        },
+        "millibelleSpawn": {
+            "x": 36,
+            "y": 82.8
+        },
+        "knightSpawn": {
+            "x": 40.8,
+            "y": 82.4
+        },
+        "flagData": {
+            "filename": "flagSignSW",
+            "x": 23.2,
+            "y": 4.81
+        }
+    },
+    {
+        "name": "Resting Grounds",
+        "scene": "RestingGrounds_05",
+        "startTransition": "left2",
+        "holeTarget": "bot1",
+        "doorColor": {
+            "r": 0.5309,
+            "g": 0.5961,
+            "b": 0.9054
+        },
+        "millibelleSpawn": {
+            "x": 17,
+            "y": 78.8
+        },
+        "knightSpawn": {
+            "x": 4.8,
+            "y": 78.4
+        },
+        "objectsToDisable": [ "grave_tall_pole_sil (2)" ],
+        "flagData": {
+            "filename": "flagSignE",
+            "x": 29.8,
+            "y": 3.81
+        }
+    },
+    {
+        "name": "The Hive",
+        "scene": "Hive_03",
+        "startTransition": "right1",
+        "holeTarget": "bot1",
+        "doorColor": {
+            "r": 1,
+            "g": 0.7516,
+            "b": 0.3917
+        },
+        "millibelleSpawn": {
+            "x": 129.5,
+            "y": 143.8
+        },
+        "knightSpawn": {
+            "x": 137.7,
+            "y": 143.4
+        },
+        "objectsToDisable": [ "Flamebearer Spawn" ],
+        "quirrelData": {
+            "x": 120.4,
+            "y": 143.81,
+            "faceRight": false,
+            "dialogueKey": "HIVE"
+        },
+        "flagData": {
+            "filename": "flagSignSW",
+            "x": 80.4,
+            "y": 112.81
+        }
+    },
+    {
+        "name": "Greenpath",
+        "scene": "Fungus1_31",
+        "startTransition": "right1",
+        "holeTarget": "bot1",
+        "doorColor": {
+            "r": 0.3909,
+            "g": 0.6868,
+            "b": 0.3693
+        },
+        "millibelleSpawn": {
+            "x": 31,
+            "y": 115.8
+        },
+        "knightSpawn": {
+            "x": 33.7,
+            "y": 115.4
+        },
+        "objectsToDisable": [ "Toll Gate", "Toll Gate (1)", "Toll Gate Machine", "Toll Gate Machine (1)" ],
+        "quirrelData": {
+            "x": 23.3,
+            "y": 107.81,
+            "faceRight": false,
+            "dialogueKey": "GREENPATH"
+        },
+        "flagData": {
+            "filename": "flagSignSE",
+            "x": 17.4,
+            "y": 3.81
+        }
+    },
+    {
+        "name": "Fog Canyon",
+        "scene": "Fungus3_02",
+        "startTransition": "left1",
+        "doorColor": {
+            "r": 0.7909,
+            "g": 0.7161,
+            "b": 1
+        },
+        "millibelleSpawn": {
+            "x": 6,
+            "y": 94.8
+        },
+        "knightSpawn": {
+            "x": 2.3,
+            "y": 94.4
+        },
+        "customHolePosition": {
+            "x": 6.45,
+            "y": 5.3,
+            "sx": 3.02,
+            "sy": 0.6
+        },
+        "flagData": {
+            "filename": "flagSignW",
+            "x": 11.9,
+            "y": 4.81
+        }
+    },
+    {
+        "name": "Kingdom's Edge",
+        "scene": "Deepnest_East_11",
+        "startTransition": "right1",
+        "holeTarget": "bot1",
+        "doorColor": {
+            "r": 0.6709,
+            "g": 0.8761,
+            "b": 1
+        },
+        "millibelleSpawn": {
+            "x": 101,
+            "y": 119.8
+        },
+        "knightSpawn": {
+            "x": 107.8,
+            "y": 119.4
+        },
+        "objectsToDisable": [ "Spawn 1" ],
+        "quirrelData": {
+            "x": 91.5,
+            "y": 119.81,
+            "faceRight": true,
+            "dialogueKey": "EDGE"
+        },
+        "flagData": {
+            "filename": "flagSignSE",
+            "x": 33.1,
+            "y": 42.81
+        }
+    },
+    {
+        "name": "Royal Waterways",
+        "scene": "Waterways_02",
+        "startTransition": "top1",
+        "holeTarget": "bot2",
+        "doorColor": {
+            "r": 0.1887,
+            "g": 0.4961,
+            "b": 0.52
+        },
+        "millibelleSpawn": {
+            "x": 69,
+            "y": 28.8
+        },
+        "knightSpawn": {
+            "x": 65,
+            "y": 28.4
+        },
+        "flagData": {
+            "filename": "flagSignSE",
+            "x": 216,
+            "y": 3.81
+        }
+    },
+    {
+        "name": "Howling Cliffs",
+        "scene": "Cliffs_01",
+        "startTransition": "right1",
+        "holeTarget": "right3",
+        "doorColor": {
+            "r": 0.2509,
+            "g": 0.3761,
+            "b": 0.5254
+        },
+        "millibelleSpawn": {
+            "x": 133,
+            "y": 143.8
+        },
+        "knightSpawn": {
+            "x": 137.7,
+            "y": 143.4
+        },
+        "objectsToDisable": [ "Tut_tablet_top" ],
+        "flagData": {
+            "filename": "flagSignE",
+            "x": 114.6,
+            "y": 7.81
+        }
+    },
+    {
+        "name": "The Abyss",
+        "scene": "Abyss_06_Core",
+        "startTransition": "top1",
+        "holeTarget": "bot1",
+        "doorColor": {
+            "r": 0,
+            "g": 0,
+            "b": 0
+        },
+        "millibelleSpawn": {
+            "x": 85,
+            "y": 256.8
+        },
+        "knightSpawn": {
+            "x": 90,
+            "y": 256.4
+        },
+        "childrenToDisable": {
+            "abyss_door": [ "Gate", "Collider" ]
+        },
+        "objectsToDisable": [ "floor_closed", "Shade Sibling Spawner", "Tut_tablet_Abyss" ],
+        "flagData": {
+            "filename": "flagSignSW",
+            "x": 30.6,
+            "y": 3.81
+        }
+    },
+    {
+        "name": "Fungal Wastes",
+        "scene": "Fungus2_12",
+        "startTransition": "left1",
+        "holeTarget": "bot1",
+        "doorColor": {
+            "r": 0.1509,
+            "g": 0.2087,
+            "b": 0.64
+        },
+        "secondaryDoorColor": {
+            "r": 0.6709,
+            "g": 0.6087,
+            "b": 0
+        },
+        "millibelleSpawn": {
+            "x": 9,
+            "y": 7.8
+        },
+        "knightSpawn": {
+            "x": 2.3,
+            "y": 7.4
+        },
+        "flagData": {
+            "filename": "flagSignSW",
+            "x": 94.3,
+            "y": 3.81
+        }
+    },
+    {
+        "name": "Soul Sanctum",
+        "scene": "Ruins1_30",
+        "startTransition": "left2",
+        "holeTarget": "bot1",
+        "doorColor": {
+            "r": 0.6709,
+            "g": 0.7361,
+            "b": 1
+        },
+        "millibelleSpawn": {
+            "x": 10,
+            "y": 3.8
+        },
+        "knightSpawn": {
+            "x": 2.2,
+            "y": 3.4
+        },
+        "flagData": {
+            "filename": "flagSignSE",
+            "x": 53.5,
+            "y": 3.81
+        }
+    },
+    {
+        "name": "Ancient Basin",
+        "scene": "Abyss_04",
+        "startTransition": "top1",
+        "holeTarget": "bot1",
+        "doorColor": {
+            "r": 0.5109,
+            "g": 0.4761,
+            "b": 0.4654
+        },
+        "millibelleSpawn": {
+            "x": 49,
+            "y": 83.8
+        },
+        "knightSpawn": {
+            "x": 56,
+            "y": 87.1
+        },
+        "objectsToDisable": [ "black_grass3 (2)", "Fountain Donation" ],
+        "flagData": {
+            "filename": "flagSignSE",
+            "x": 54.8,
+            "y": 8.81
+        }
+    },
+    {
+        "name": "Queen's Gardens",
+        "scene": "Fungus3_04",
+        "startTransition": "left1",
+        "holeTarget": "right2",
+        "doorColor": {
+            "r": 0.4709,
+            "g": 1,
+            "b": 0.5254
+        },
+        "millibelleSpawn": {
+            "x": 27,
+            "y": 83.8
+        },
+        "knightSpawn": {
+            "x": 2.3,
+            "y": 83.4
+        },
+        "objectsToDisable": [ "Ruins Lever", "Garden Slide Floor" ],
+        "flagData": {
+            "filename": "flagSignE",
+            "x": 31.3,
+            "y": 5.81
+        }
+    },
+    {
+        "name": "City of Tears",
+        "scene": "Ruins1_03",
+        "startTransition": "right1",
+        "holeTarget": "left1",
+        "doorColor": {
+            "r": 0.2909,
+            "g": 0.4561,
+            "b": 1
+        },
+        "millibelleSpawn": {
+            "x": 138,
+            "y": 40.8
+        },
+        "knightSpawn": {
+            "x": 145.8,
+            "y": 40.4
+        },
+        "objectsToDisable": [ "Direction Pole Bench" ],
+        "flagData": {
+            "filename": "flagSignW",
+            "x": 5.2,
+            "y": 8.81
+        }
+    },
+    {
+        "name": "Deepnest",
+        "scene": "Deepnest_35",
+        "startTransition": "top1",
+        "holeTarget": "bot1",
+        "doorColor": {
+            "r": 0.1298,
+            "g": 0.1509,
+            "b": 0.28
+        },
+        "millibelleSpawn": {
+            "x": 41,
+            "y": 103.8
+        },
+        "knightSpawn": {
+            "x": 35,
+            "y": 103.4
+        },
+        "flagData": {
+            "filename": "flagSignSW",
+            "x": 20.3,
+            "y": 3.81
+        }
+    },
+    {
+        "name": "Crystal Peak",
+        "scene": "Mines_23",
+        "startTransition": "right1",
+        "holeTarget": "left1",
+        "doorColor": {
+            "r": 1,
+            "g": 0.6372,
+            "b": 1
+        },
+        "millibelleSpawn": {
+            "x": 170,
+            "y": 27.8
+        },
+        "knightSpawn": {
+            "x": 177.8,
+            "y": 27.4
+        },
+        "objectsToDisable": [ "brk_barrel_04", "crystal_barrel_03", "Crown Door", "Crown_SecretMask" ],
+        "flagData": {
+            "filename": "flagSignNW",
+            "x": 8.8,
+            "y": 9.81
+        }
+    },
+    {
+        "name": "White Palace",
+        "scene": "White_Palace_19",
+        "startTransition": "top1",
+        "holeTarget": "left1",
+        "doorColor": {
+            "r": 0.85,
+            "g": 0.85,
+            "b": 1
+        },
+        "millibelleSpawn": {
+            "x": 14,
+            "y": 157.8
+        },
+        "knightSpawn": {
+            "x": 18,
+            "y": 163.3
+        },
+        "objectsToDisable": [ "white_vine_01_silhouette (3)" ],
+        "flagData": {
+            "filename": "flagSignW",
+            "x": 94.2,
+            "y": 33.81
+        }
+    }
+]

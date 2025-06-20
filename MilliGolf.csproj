@@ -344,12 +344,17 @@
   <ItemGroup>
     <None Include=".gitignore" />
     <None Include="ReadMe.md" />
-    <None Include="Resources\.gitignore" />
   </ItemGroup>
   <ItemGroup>
-    <None Remove="Images\*.png"/>
+    <None Remove="Images\*.png" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Images\*.png"/>
+    <EmbeddedResource Include="Images\*.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Resources\DefaultCourses.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\DefaultCourses.json" />
   </ItemGroup>
 </Project>

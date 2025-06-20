@@ -40,17 +40,13 @@ namespace MilliGolf {
 
         private static MilliGolf _instance;
 
-        public MilliGolf() : base()
-        {
+        public MilliGolf() : base() {
             _instance = this;
         }
 
-        internal static MilliGolf Instance
-        {
-            get
-            {
-                if (_instance == null)
-                {
+        internal static MilliGolf Instance {
+            get {
+                if(_instance == null) {
                     throw new InvalidOperationException($"{nameof(MilliGolf)} was never initialized");
                 }
                 return _instance;
@@ -88,7 +84,7 @@ namespace MilliGolf {
             ModHooks.TakeHealthHook += takeHealth;
             ModHooks.NewGameHook += onNewGameSetup;
             ModHooks.SavegameLoadHook += onSaveLoadSetup;
-            ModHooks.BeforeSceneLoadHook += onBeforeSceneLoad;           
+            ModHooks.BeforeSceneLoadHook += onBeforeSceneLoad;
 
             CameraMods.Initialize();
 
@@ -114,12 +110,10 @@ namespace MilliGolf {
             }
 
             // Only make a Rando Integration if Randomizer 4 is active.
-            if (ModHooks.GetMod("Randomizer 4") is Mod)
-            {
+            if(ModHooks.GetMod("Randomizer 4") is Mod) {
                 GolfManager.Hook();
 
-                if (ModHooks.GetMod("RandoSettingsManager") is Mod)
-                {
+                if(ModHooks.GetMod("RandoSettingsManager") is Mod) {
                     RSM_Interop.Hook();
                 }
             }
@@ -139,18 +133,15 @@ namespace MilliGolf {
             // installs its hook on this method upon loading or creating a save,
             // so hooking here does allow us to beat IC to the punch.
             On.GameManager.BeginSceneTransition += TransitionToGolfRoom;
-            if (ModHooks.GetMod("ItemChangerMod") is Mod)
-            {
+            if(ModHooks.GetMod("ItemChangerMod") is Mod) {
                 GolfManager.AddICHooks();
             }
         }
 
-        private void HazardRespawn(On.DeactivateInDarknessWithoutLantern.orig_Start orig, DeactivateInDarknessWithoutLantern self)
-        {
+        private void HazardRespawn(On.DeactivateInDarknessWithoutLantern.orig_Start orig, DeactivateInDarknessWithoutLantern self) {
             orig(self);
 
-            if (self.GetComponent<HazardRespawnTrigger>() != null && isInGolfRoom)
-            {
+            if(self.GetComponent<HazardRespawnTrigger>() != null && isInGolfRoom) {
                 self.gameObject.SetActive(true);
             }
         }
@@ -158,40 +149,36 @@ namespace MilliGolf {
         internal const string golfTransitionSuffix = "_golf";
         internal const string golfTentTransition = "room_milligolf";
 
-        private void TransitionToGolfRoom(On.GameManager.orig_BeginSceneTransition orig, GameManager self, GameManager.SceneLoadInfo info)
-        {
-            if (info.EntryGateName != null && info.EntryGateName.EndsWith(golfTransitionSuffix))
-            {
+        private void TransitionToGolfRoom(On.GameManager.orig_BeginSceneTransition orig, GameManager self, GameManager.SceneLoadInfo info) {
+            if(info.EntryGateName != null && info.EntryGateName.EndsWith(golfTransitionSuffix)) {
                 info.EntryGateName = info.EntryGateName.Substring(0, info.EntryGateName.Length - golfTransitionSuffix.Length);
                 doCustomLoad = true;
             }
             orig(self, info);
         }
 
-        private bool DreamNailOverride(On.HeroController.orig_CanDreamNail orig, HeroController self)
-        {
+        private bool DreamNailOverride(On.HeroController.orig_CanDreamNail orig, HeroController self) {
             bool boolLessDNail = (
-                !GameManager.instance.isPaused && 
-                self.hero_state != ActorStates.no_input && 
-                !self.cState.dashing && 
-                !self.cState.backDashing && 
+                !GameManager.instance.isPaused &&
+                self.hero_state != ActorStates.no_input &&
+                !self.cState.dashing &&
+                !self.cState.backDashing &&
                 (!self.cState.attacking || !(ReflectionHelper.GetField<HeroController, float>(self, "attack_time") <
-                                             ReflectionHelper.GetField<HeroController, float>(self, "ATTACK_RECOVERY_TIME"))) && 
-                !self.controlReqlinquished && 
-                !self.cState.hazardDeath && 
-                !self.cState.hazardRespawning && 
+                                             ReflectionHelper.GetField<HeroController, float>(self, "ATTACK_RECOVERY_TIME"))) &&
+                !self.controlReqlinquished &&
+                !self.cState.hazardDeath &&
+                !self.cState.hazardRespawning &&
                 self.GetComponent<Rigidbody2D>().velocity.y > -0.1f &&
-                !self.cState.recoilFrozen && 
-                !self.cState.recoiling && 
-                !self.cState.transitioning && 
+                !self.cState.recoilFrozen &&
+                !self.cState.recoiling &&
+                !self.cState.transitioning &&
                 self.cState.onGround
             );
 
             return orig(self) || (boolLessDNail && isInGolfRoom);
         }
 
-        private bool BoolOverride(string name, bool orig)
-        {
+        private bool BoolOverride(string name, bool orig) {
             List<string> trueOverriden = new() {
                 "hasMap",
                 "hasNailArt"
@@ -200,75 +187,66 @@ namespace MilliGolf {
                 "crossroadsInfected",
                 "hasLantern"
             };
-            if (falseOverriden.Contains(name))
-            {
+            if(falseOverriden.Contains(name)) {
                 return orig && !isInGolfRoom;
             }
-            if(trueOverriden.Contains(name))
-            {
+            if(trueOverriden.Contains(name)) {
                 return orig || isInGolfRoom;
             }
             return orig;
         }
 
-        private bool WingsOverride(On.HeroController.orig_CanDoubleJump orig, HeroController self)
-        {
+        private bool WingsOverride(On.HeroController.orig_CanDoubleJump orig, HeroController self) {
             bool boolessWings = (
-                !self.controlReqlinquished && 
-                !ReflectionHelper.GetField<HeroController, bool>(self, "doubleJumped") && 
-                !ReflectionHelper.GetField<HeroController, bool>(self, "inAcid") && 
-                self.hero_state != ActorStates.no_input && 
-                self.hero_state != ActorStates.hard_landing && 
-                self.hero_state != ActorStates.dash_landing && 
-                !self.cState.dashing && !self.cState.wallSliding && 
-                !self.cState.backDashing && 
-                !self.cState.attacking && 
-                !self.cState.bouncing && 
-                !self.cState.shroomBouncing && 
+                !self.controlReqlinquished &&
+                !ReflectionHelper.GetField<HeroController, bool>(self, "doubleJumped") &&
+                !ReflectionHelper.GetField<HeroController, bool>(self, "inAcid") &&
+                self.hero_state != ActorStates.no_input &&
+                self.hero_state != ActorStates.hard_landing &&
+                self.hero_state != ActorStates.dash_landing &&
+                !self.cState.dashing && !self.cState.wallSliding &&
+                !self.cState.backDashing &&
+                !self.cState.attacking &&
+                !self.cState.bouncing &&
+                !self.cState.shroomBouncing &&
                 !self.cState.onGround
             );
 
             return orig(self) || (boolessWings && isInGolfRoom);
         }
 
-        private bool CDashOverride(On.HeroController.orig_CanSuperDash orig, HeroController self)
-        {
+        private bool CDashOverride(On.HeroController.orig_CanSuperDash orig, HeroController self) {
             bool boolessCDash = (
-                !GameManager._instance.isPaused && 
-                self.hero_state != ActorStates.no_input && 
-                !self.cState.dashing && 
-                !self.cState.hazardDeath && 
-                !self.cState.hazardRespawning && 
-                !self.cState.backDashing && 
+                !GameManager._instance.isPaused &&
+                self.hero_state != ActorStates.no_input &&
+                !self.cState.dashing &&
+                !self.cState.hazardDeath &&
+                !self.cState.hazardRespawning &&
+                !self.cState.backDashing &&
                 (!self.cState.attacking || !(ReflectionHelper.GetField<HeroController, float>(self, "attack_time") <
                                              ReflectionHelper.GetField<HeroController, float>(self, "ATTACK_RECOVERY_TIME"))) &&
-                !self.cState.slidingLeft && 
-                !self.cState.slidingRight && 
-                !self.controlReqlinquished && 
-                !self.cState.recoilFrozen && 
-                !self.cState.recoiling && 
-                !self.cState.transitioning && 
+                !self.cState.slidingLeft &&
+                !self.cState.slidingRight &&
+                !self.controlReqlinquished &&
+                !self.cState.recoilFrozen &&
+                !self.cState.recoiling &&
+                !self.cState.transitioning &&
                 (self.cState.onGround || self.cState.wallSliding)
             );
             return orig(self) || (boolessCDash && isInGolfRoom);
         }
 
-        private bool ClawOverride(On.HeroController.orig_CanWallJump orig, HeroController self)
-        {
-            if (isInGolfRoom)
-            {
-                if (self.cState.touchingNonSlider)
-                {
+        private bool ClawOverride(On.HeroController.orig_CanWallJump orig, HeroController self) {
+            if(isInGolfRoom) {
+                if(self.cState.touchingNonSlider) {
                     return false;
                 }
 
-                if (self.cState.wallSliding)
-                {
+                if(self.cState.wallSliding) {
                     return true;
                 }
 
-                if (self.cState.touchingWall && !self.cState.onGround)
-                {
+                if(self.cState.touchingWall && !self.cState.onGround) {
                     return true;
                 }
 
@@ -277,50 +255,46 @@ namespace MilliGolf {
             return orig(self);
         }
 
-        private bool ClawOverride2(On.HeroController.orig_CanWallSlide orig, HeroController self)
-        {
+        private bool ClawOverride2(On.HeroController.orig_CanWallSlide orig, HeroController self) {
             bool canSlide = (
-                (self.cState.wallSliding && GameManager._instance.isPaused) || 
-                !self.cState.touchingNonSlider && 
-                !ReflectionHelper.GetField<HeroController, bool>(self, "inAcid") && 
-                !self.cState.dashing && 
-                !self.cState.onGround && 
-                !self.cState.recoiling && 
-                !GameManager._instance.isPaused && 
-                !self.controlReqlinquished && 
-                !self.cState.transitioning && 
-                (self.cState.falling || self.cState.wallSliding) && 
-                !self.cState.doubleJumping && 
+                (self.cState.wallSliding && GameManager._instance.isPaused) ||
+                !self.cState.touchingNonSlider &&
+                !ReflectionHelper.GetField<HeroController, bool>(self, "inAcid") &&
+                !self.cState.dashing &&
+                !self.cState.onGround &&
+                !self.cState.recoiling &&
+                !GameManager._instance.isPaused &&
+                !self.controlReqlinquished &&
+                !self.cState.transitioning &&
+                (self.cState.falling || self.cState.wallSliding) &&
+                !self.cState.doubleJumping &&
                 self.CanInput()
             );
-            
+
             return orig(self) || (canSlide && isInGolfRoom);
         }
 
-        private void ClawOverride3(On.HeroController.orig_LookForInput orig, HeroController self)
-        {
+        private void ClawOverride3(On.HeroController.orig_LookForInput orig, HeroController self) {
             orig(self);
 
             bool canSlide = (
-                (self.cState.wallSliding && GameManager._instance.isPaused) || 
-                !self.cState.touchingNonSlider && 
-                !ReflectionHelper.GetField<HeroController, bool>(self, "inAcid") && 
-                !self.cState.dashing && 
-                !self.cState.onGround && 
-                !self.cState.recoiling && 
+                (self.cState.wallSliding && GameManager._instance.isPaused) ||
+                !self.cState.touchingNonSlider &&
+                !ReflectionHelper.GetField<HeroController, bool>(self, "inAcid") &&
+                !self.cState.dashing &&
+                !self.cState.onGround &&
+                !self.cState.recoiling &&
                 (PlayerData.instance.GetBool("hasWalljump") || isInGolfRoom) &&
-                !GameManager._instance.isPaused && 
-                !self.controlReqlinquished && 
-                !self.cState.transitioning && 
-                (self.cState.falling || self.cState.wallSliding) && 
-                !self.cState.doubleJumping && 
+                !GameManager._instance.isPaused &&
+                !self.controlReqlinquished &&
+                !self.cState.transitioning &&
+                (self.cState.falling || self.cState.wallSliding) &&
+                !self.cState.doubleJumping &&
                 self.CanInput()
             );
 
-            if (canSlide && !self.cState.attacking)
-            {
-                if (self.touchingWallL && InputHandler.Instance.inputActions.left.IsPressed && !self.cState.wallSliding)
-                {
+            if(canSlide && !self.cState.attacking) {
+                if(self.touchingWallL && InputHandler.Instance.inputActions.left.IsPressed && !self.cState.wallSliding) {
                     ReflectionHelper.SetFieldSafe(self, "airDashed", false);
                     ReflectionHelper.SetFieldSafe(self, "doubleJumped", false);
                     self.wallSlideVibrationPlayer.Play();
@@ -331,8 +305,7 @@ namespace MilliGolf {
                     self.FaceLeft();
                 }
 
-                if (self.touchingWallR && InputHandler.Instance.inputActions.right.IsPressed && !self.cState.wallSliding)
-                {
+                if(self.touchingWallR && InputHandler.Instance.inputActions.right.IsPressed && !self.cState.wallSliding) {
                     ReflectionHelper.SetFieldSafe(self, "airDashed", false);
                     ReflectionHelper.SetFieldSafe(self, "doubleJumped", false);
                     self.wallSlideVibrationPlayer.Play();
@@ -345,8 +318,7 @@ namespace MilliGolf {
             }
         }
 
-        private bool DashOverride(On.HeroController.orig_CanDash orig, HeroController self)
-        {
+        private bool DashOverride(On.HeroController.orig_CanDash orig, HeroController self) {
             bool boolessDash = (
                 self.hero_state != ActorStates.no_input &&
                 self.hero_state != ActorStates.hard_landing &&
@@ -381,8 +353,7 @@ namespace MilliGolf {
 
         private void onNewGameSetup() {
             bool isRando = false;
-            if (ModHooks.GetMod("Randomizer 4") is Mod)
-            {
+            if(ModHooks.GetMod("Randomizer 4") is Mod) {
                 isRando = GolfManager.IsRandoSave();
             }
             GolfManager.SaveSettings.randoSettings.Enabled = GolfManager.GlobalSettings.Enabled && isRando;
@@ -431,16 +402,14 @@ namespace MilliGolf {
                     self.GetValidState("Get Damager Parameters").InsertAction(new storeTinkDamager(self), 1);
                 }
             }
-            else if (self.gameObject.name == "Quirrel Mantis NPC(Clone)(Clone)" && self.FsmName == "FSM")
-            {
+            else if(self.gameObject.name == "Quirrel Mantis NPC(Clone)(Clone)" && self.FsmName == "FSM") {
                 isGolfingBool golfQuirrel = new();
                 golfQuirrel.isTrue = FsmEvent.GetFsmEvent("ENABLE");
                 self.AddState("Keep");
                 self.AddFirstAction("Check", golfQuirrel);
                 self.AddTransition("Check", "ENABLE", "Keep");
             }
-            else if (self.gameObject.name == "Surface Water Region" && self.FsmName == "Acid Armour Check")
-            {
+            else if(self.gameObject.name == "Surface Water Region" && self.FsmName == "Acid Armour Check") {
                 isGolfingBool golfIsma = new();
                 golfIsma.isTrue = FsmEvent.GetFsmEvent("ENABLE");
                 self.AddFirstAction("Check", golfIsma);
@@ -506,11 +475,10 @@ namespace MilliGolf {
                 resetState.AddTransition("FINISHED", "Charge Cancel");
                 resetState.AddAction(new golfQuickReset());
             }
-            else if(self.gameObject.name == "Knight" && self.FsmName == "Nail Arts")
-            {
+            else if(self.gameObject.name == "Knight" && self.FsmName == "Nail Arts") {
                 isGolfingBool isGolfingSet = new();
                 isGolfingSet.isTrue = FsmEvent.GetFsmEvent("GOLFING");
-                
+
                 self.AddFirstAction("Has Dash?", isGolfingSet);
                 self.AddTransition("Has Dash?", "GOLFING", "Dash Slash Ready");
 
@@ -542,8 +510,7 @@ namespace MilliGolf {
             bool accessRandomized = golfData.randoSettings.Enabled && golfData.randoSettings.CourseAccess;
             if(to.name == "Town" && !doCustomLoad) {
                 {
-                    if(!accessRandomized || accessRandomized && golfData.randoSaveState.courseAccess.AnyTrue())
-                    {
+                    if(!accessRandomized || accessRandomized && golfData.randoSaveState.courseAccess.AnyTrue()) {
                         GameObject golfTransition = GameObject.Instantiate(prefabs["Town"]["room_divine"], new Vector3(195.2094f, 7.8265f, 0), Quaternion.identity);
                         golfTransition.RemoveComponent<DeactivateIfPlayerdataFalse>();
                         golfTransition.SetActive(true);
@@ -610,7 +577,7 @@ namespace MilliGolf {
                         (float, float, bool, string) qd = tempDict[self.sceneName].quirrelData;
                         GameObject quirrel = addQuirrel(qd.Item1, qd.Item2, qd.Item3, qd.Item4);
                         if(self.sceneName == "Town") {
-                            PlayMakerFSM.FindFsmOnGameObject(quirrel,"npc_control").FsmVariables.GetFsmFloat("Move To Offset").SafeAssign(1);
+                            PlayMakerFSM.FindFsmOnGameObject(quirrel, "npc_control").FsmVariables.GetFsmFloat("Move To Offset").SafeAssign(1);
                         }
                     }
                     (string, float, float) fd = tempDict[self.sceneName].flagData;
@@ -648,48 +615,37 @@ namespace MilliGolf {
                         }
 
                         // Remove several interactable items that could affect rando runs
-                        if(go.name == "RestBench")
-                        {
+                        if(go.name == "RestBench") {
                             go.SetActive(false);
                         }
-                        if(go.name.Contains("Grub"))
-                        {
+                        if(go.name.Contains("Grub")) {
                             go.SetActive(false);
                         }
-                        if(go.name == "Cornifer")
-                        {
+                        if(go.name == "Cornifer") {
                             go.SetActive(false);
                         }
-                        if(go.name == "Dream Plant")
-                        {
+                        if(go.name == "Dream Plant") {
                             go.SetActive(false);
                         }
-                        if(go.name.Contains("Soul Totem"))
-                        {
+                        if(go.name.Contains("Soul Totem")) {
                             go.SetActive(false);
                         }
-                        if(go.name.Contains("Shiny Item"))
-                        {
+                        if(go.name.Contains("Shiny Item")) {
                             go.SetActive(false);
                         }
-                        if(go.name.Contains("Geo Rock"))
-                        {
+                        if(go.name.Contains("Geo Rock")) {
                             go.SetActive(false);
                         }
-                        if(go.name.Contains("Breakable Wall"))
-                        {
+                        if(go.name.Contains("Breakable Wall")) {
                             go.SetActive(false);
                         }
-                        if(go.name.Contains("One Way Wall"))
-                        {
+                        if(go.name.Contains("One Way Wall")) {
                             go.SetActive(false);
                         }
-                        if(go.name.Contains("Quake Floor"))
-                        {
+                        if(go.name.Contains("Quake Floor")) {
                             go.SetActive(false);
                         }
-                        if(go.name.Contains("Dream Dialogue"))
-                        {
+                        if(go.name.Contains("Dream Dialogue")) {
                             go.SetActive(false);
                         }
 
@@ -717,7 +673,7 @@ namespace MilliGolf {
                     }
                     TransitionPoint[] transitions = GameObject.FindObjectsOfType<TransitionPoint>();
                     foreach(TransitionPoint tp in transitions) {
-                        if (tp.name == "left1") {
+                        if(tp.name == "left1") {
                             tp.targetScene = "Town";
                             tp.entryPoint = golfTentTransition;
                             tp.OnBeforeTransition += setCustomLoad.setCustomLoadFalse;
@@ -744,8 +700,7 @@ namespace MilliGolf {
                     }
 
                     bool radiantRando = golfData.randoSettings.Enabled && golfData.randoSettings.GlobalGoals >= MaxTier.Radiant;
-                    if((!radiantRando && totalScore <= golfMilestones.Expert && golfData.scoreboard.Count == 18) || (radiantRando && golfData.randoSaveState.globalGoals >= 3)) 
-                    {
+                    if((!radiantRando && totalScore <= golfMilestones.Expert && golfData.scoreboard.Count == 18) || (radiantRando && golfData.randoSaveState.globalGoals >= 3)) {
                         addTrophyStatue(totalScore);
                     }
                     else {
@@ -793,8 +748,7 @@ namespace MilliGolf {
             // no collision so that they can enter from the other side
             // (only relevant for transition rando)
             bool accessRandomized = golfData.randoSettings.Enabled && golfData.randoSettings.CourseAccess;
-            if (accessRandomized && !golfData.randoSaveState.courseAccess.GetVariable<bool>(room.scene))
-            {
+            if(accessRandomized && !golfData.randoSaveState.courseAccess.GetVariable<bool>(room.scene)) {
                 GameObject dummy = new();
                 dummy.name = $"dummy transition from {room.scene}";
                 dummy.transform.position = new Vector3(x, y, 8.13f);
@@ -888,7 +842,7 @@ namespace MilliGolf {
             GameObject knight3 = statueBase.FindGameObjectInChildren("Knight_v03");
             GameObject knightWithFsm;
             string outputText;
-            
+
             List<GameObject> spotlightChildren = new();
             statueBase.FindGameObjectInChildren("Glow Response statue_beam").FindAllChildren(spotlightChildren);
             foreach(GameObject spotlightChild in spotlightChildren) {
@@ -912,8 +866,7 @@ namespace MilliGolf {
                     }
                 }
                 outputText = "GRANDMASTER\r\nCongratulations, you have achieved an an extraordinary score and can officially consider yourself a God Gamer.<page>(No affiliation with fireb0rn and his academy)";
-                if (golfData.randoSettings.GlobalGoals == MaxTier.Grandmaster && score > golfMilestones.Master)
-                {
+                if(golfData.randoSettings.GlobalGoals == MaxTier.Grandmaster && score > golfMilestones.Master) {
                     outputText += $"<page>...Is what you will be told if you ever get to do all courses in {golfMilestones.Grandmaster} hits or less, that is.";
                 }
             }
@@ -930,13 +883,11 @@ namespace MilliGolf {
                     }
                 }
                 outputText = "MASTER\r\nWell done achieving such an impressive score! You've come so far, but there's one more level to reach!";
-                if (golfData.randoSettings.GlobalGoals >= MaxTier.Master && score > golfMilestones.Master)
-                {
+                if(golfData.randoSettings.GlobalGoals >= MaxTier.Master && score > golfMilestones.Master) {
                     outputText += $"<page>...Is what you will be told if you ever get to do all courses in {golfMilestones.Master} hits or less, that is.";
                 }
-                if (!golfData.randoSettings.Enabled || (golfData.randoSettings.GlobalGoals < MaxTier.Grandmaster && golfData.scoreboard.Count == 18))
-                {
-                    outputText += $"<page>{score-golfMilestones.Grandmaster} away from Grandmaster";
+                if(!golfData.randoSettings.Enabled || (golfData.randoSettings.GlobalGoals < MaxTier.Grandmaster && golfData.scoreboard.Count == 18)) {
+                    outputText += $"<page>{score - golfMilestones.Grandmaster} away from Grandmaster";
                 }
             }
             else {
@@ -945,13 +896,11 @@ namespace MilliGolf {
                 knight3.SetActive(false);
                 knightWithFsm = knight1;
                 outputText = "EXPERT\r\nNice job reaching Radiant!";
-                if (golfData.randoSettings.GlobalGoals >= MaxTier.Master && score > golfMilestones.Expert)
-                {
+                if(golfData.randoSettings.GlobalGoals >= MaxTier.Master && score > golfMilestones.Expert) {
                     outputText += $"<page>...Is what you will be told if you ever get to do all courses in {golfMilestones.Expert} hits or less, that is.";
                 }
-                else if (!golfData.randoSettings.Enabled || (golfData.randoSettings.GlobalGoals < MaxTier.Master  && golfData.scoreboard.Count == 18))
-                {
-                    outputText += $"<page>{score-golfMilestones.Master} away from Master";
+                else if(!golfData.randoSettings.Enabled || (golfData.randoSettings.GlobalGoals < MaxTier.Master && golfData.scoreboard.Count == 18)) {
+                    outputText += $"<page>{score - golfMilestones.Master} away from Master";
                 }
             }
             outputText += OnAttunedPreview?.Invoke();
@@ -980,16 +929,13 @@ namespace MilliGolf {
             return totalScore;
         }
 
-        private void locationCheck(On.BossSummaryBoard.orig_Show orig, BossSummaryBoard self)
-        {
+        private void locationCheck(On.BossSummaryBoard.orig_Show orig, BossSummaryBoard self) {
             int total = calculateTotalScore();
             bool completionRandomized = golfData.randoSettings.Enabled && golfData.randoSettings.CourseCompletion;
             bool globalGoals = golfData.randoSettings.Enabled && golfData.randoSettings.GlobalGoals > MaxTier.None;
-            if (globalGoals)
-            {
+            if(globalGoals) {
                 // Set up hook for Rando to grant location checks - only if all courses were cleared
-                if (golfData.scoreboard.Count == 18 && (!completionRandomized || !golfData.randoSaveState.courseCompletion.AnyFalse()))
-                {
+                if(golfData.scoreboard.Count == 18 && (!completionRandomized || !golfData.randoSaveState.courseCompletion.AnyFalse())) {
                     OnBoardCheck?.Invoke(total);
                 }
             }
@@ -1009,8 +955,7 @@ namespace MilliGolf {
             bool completionRandomized = golfData.randoSettings.Enabled && golfData.randoSettings.CourseCompletion;
             for(int i = 1; i < 10; i++) {
                 string sceneName = GolfScene.courseDict[GolfScene.courseList[i - 1]].name;
-                if (accessRandomized && !golfData.randoSaveState.courseAccess.GetVariable<bool>(GolfScene.courseDict[GolfScene.courseList[i - 1]].scene))
-                {
+                if(accessRandomized && !golfData.randoSaveState.courseAccess.GetVariable<bool>(GolfScene.courseDict[GolfScene.courseList[i - 1]].scene)) {
                     sceneName = "???";
                 }
                 children[i].FindGameObjectInChildren("Name_Text").GetComponent<uuiText>().text = sceneName;
@@ -1021,13 +966,11 @@ namespace MilliGolf {
             for(int i = 12; i < 21; i++) {
                 string sceneName = GolfScene.courseDict[GolfScene.courseList[i - 12]].scene;
                 string scoreText;
-                
-                if (!golfData.scoreboard.ContainsKey(sceneName))
-                {
+
+                if(!golfData.scoreboard.ContainsKey(sceneName)) {
                     scoreText = "---";
                 }
-                else if (completionRandomized && !golfData.randoSaveState.courseCompletion.GetVariable<bool>(GolfScene.courseDict[GolfScene.courseList[i - 12]].scene))
-                {
+                else if(completionRandomized && !golfData.randoSaveState.courseCompletion.GetVariable<bool>(GolfScene.courseDict[GolfScene.courseList[i - 12]].scene)) {
                     scoreText = "???";
                 }
                 else {
@@ -1041,8 +984,7 @@ namespace MilliGolf {
             excessLines.Add(children[22]);
             for(int i = 23; i < 32; i++) {
                 string sceneName = GolfScene.courseDict[GolfScene.courseList[i - 14]].name;
-                if (accessRandomized && !golfData.randoSaveState.courseAccess.GetVariable<bool>(GolfScene.courseDict[GolfScene.courseList[i - 14]].scene))
-                {
+                if(accessRandomized && !golfData.randoSaveState.courseAccess.GetVariable<bool>(GolfScene.courseDict[GolfScene.courseList[i - 14]].scene)) {
                     sceneName = "???";
                 }
                 children[i].FindGameObjectInChildren("Name_Text").GetComponent<uuiText>().text = sceneName;
@@ -1051,12 +993,10 @@ namespace MilliGolf {
             for(int i = 34; i < 43; i++) {
                 string sceneName = GolfScene.courseDict[GolfScene.courseList[i - 25]].scene;
                 string scoreText;
-                if (!golfData.scoreboard.ContainsKey(sceneName))
-                {
+                if(!golfData.scoreboard.ContainsKey(sceneName)) {
                     scoreText = "---";
                 }
-                else if (completionRandomized && !golfData.randoSaveState.courseCompletion.GetVariable<bool>(GolfScene.courseDict[GolfScene.courseList[i - 25]].scene))
-                {
+                else if(completionRandomized && !golfData.randoSaveState.courseCompletion.GetVariable<bool>(GolfScene.courseDict[GolfScene.courseList[i - 25]].scene)) {
                     scoreText = "???";
                 }
                 else {
@@ -1064,12 +1004,10 @@ namespace MilliGolf {
                 }
                 children[i].FindGameObjectInChildren("Name_Text").GetComponent<uuiText>().text = scoreText;
             }
-            if (!completionRandomized || (completionRandomized && !golfData.randoSaveState.courseCompletion.AnyFalse()))
-            {
+            if(!completionRandomized || (completionRandomized && !golfData.randoSaveState.courseCompletion.AnyFalse())) {
                 children[32].FindGameObjectInChildren("Name_Text").GetComponent<uuiText>().text = totalScore.ToString();
             }
-            else
-            {
+            else {
                 children[32].FindGameObjectInChildren("Name_Text").GetComponent<uuiText>().text = "???";
             }
             for(int i = 43; i < Math.Min(45, children.Count); i++) {
@@ -1086,10 +1024,8 @@ namespace MilliGolf {
                 bool goalsRandomized = golfData.randoSettings.Enabled && golfData.randoSettings.GlobalGoals > MaxTier.None;
                 if(i == 32) {
                     UnityEngine.UI.Image uuiImage = image.GetComponent<UnityEngine.UI.Image>();
-                    if (!goalsRandomized)
-                    {
-                        if(golfData.scoreboard.Count < 18 && (completionRandomized && golfData.randoSaveState.courseCompletion.AnyFalse() || !completionRandomized)) 
-                        {
+                    if(!goalsRandomized) {
+                        if(golfData.scoreboard.Count < 18 && (completionRandomized && golfData.randoSaveState.courseCompletion.AnyFalse() || !completionRandomized)) {
                             uuiImage.sprite = bsu.stateSprites[1];
                         }
                         else if(totalScore <= golfMilestones.Radiant) {
@@ -1104,28 +1040,25 @@ namespace MilliGolf {
                     }
                     else {
                         MaxTier randoGoals = golfData.randoSettings.GlobalGoals;
-                        if (randoGoals >= MaxTier.Radiant)
-                        {
+                        if(randoGoals >= MaxTier.Radiant) {
                             uuiImage.sprite = bsu.stateSprites[Math.Min(golfData.randoSaveState.globalGoals + 1, 4)];
                         }
-                        else if (randoGoals == MaxTier.Ascended)
-                        {
+                        else if(randoGoals == MaxTier.Ascended) {
                             int goals = golfData.randoSaveState.globalGoals;
-                            if (golfData.scoreboard.Count == 18 && totalScore <= golfMilestones.Radiant) {
+                            if(golfData.scoreboard.Count == 18 && totalScore <= golfMilestones.Radiant) {
                                 goals += 1;
                             }
-                            uuiImage.sprite = bsu.stateSprites[Math.Min(goals + 1, 4)];  
+                            uuiImage.sprite = bsu.stateSprites[Math.Min(goals + 1, 4)];
                         }
-                        else
-                        {
+                        else {
                             int goals = golfData.randoSaveState.globalGoals;
-                            if (golfData.scoreboard.Count == 18 && totalScore <= golfMilestones.Radiant) {
+                            if(golfData.scoreboard.Count == 18 && totalScore <= golfMilestones.Radiant) {
                                 goals += 1;
                             }
-                            if (golfData.scoreboard.Count == 18 && totalScore <= golfMilestones.Ascended) {
+                            if(golfData.scoreboard.Count == 18 && totalScore <= golfMilestones.Ascended) {
                                 goals += 1;
                             }
-                            uuiImage.sprite = bsu.stateSprites[Math.Min(goals + 1, 4)];  
+                            uuiImage.sprite = bsu.stateSprites[Math.Min(goals + 1, 4)];
                         }
                     }
                     uuiImage.SetNativeSize();
@@ -1140,43 +1073,35 @@ namespace MilliGolf {
             FieldInfo field = typeof(Language.Language).GetField("currentEntrySheets", BindingFlags.NonPublic | BindingFlags.Static);
             Dictionary<string, Dictionary<string, string>> currentEntrySheets = (Dictionary<string, Dictionary<string, string>>)field.GetValue(null);
             {
-                if(currentEntrySheets.ContainsKey("GolfQuirrel"))
-                {
+                if(currentEntrySheets.ContainsKey("GolfQuirrel")) {
                     currentEntrySheets.Remove("GolfQuirrel");
                 }
                 Dictionary<string, string> golfQuirrel = new();
-                
+
                 // Quirrel having a slightly different dialogue depending on rando settings felt like a nice touch
-                if (!golfData.randoSettings.Enabled)
-                {
+                if(!golfData.randoSettings.Enabled) {
                     golfQuirrel.Add("HALL", "Welcome to MilliGolf, an 18-hole course and grand tour of Hallownest!<page>You may notice that you have full movement here, but don't worry. All outside progression will be restored when you leave.<page>Your total strokes will be tallied for each course on this scoreboard and will update if you beat your best score.<page>Maybe if you get a really good score, you'll get some kind of prize!<page>Best of luck and happy golfing!");
                 }
-                else
-                {
+                else {
                     string hallString = "Welcome to MilliGolf, an 18-hole course and grand tour of Hallownest!";
-                    if (golfData.randoSettings.CourseAccess && golfData.randoSaveState.courseAccess.AnyFalse())
-                    {
+                    if(golfData.randoSettings.CourseAccess && golfData.randoSaveState.courseAccess.AnyFalse()) {
                         hallString += "<page>Not all 18 courses are open at the moment though, maybe that can change if you progress on your randomizer seed.";
                     }
                     hallString += "<page>You may notice that you have full movement here, but don't worry. All outside progression will be restored when you leave.";
-                    if (golfData.randoSettings.CourseCompletion)
-                    {
+                    if(golfData.randoSettings.CourseCompletion) {
                         hallString += "<page>Your total strokes will be tallied for each course on this scoreboard as soon as you find the proper checks.<page>Regardless of being able to see it or not, the strike count is kept track of and you'll get something for clearing courses too.";
                     }
-                    else
-                    {
+                    else {
                         hallString += "<page>Your total strokes will be tallied for each course on this scoreboard and will update if you beat your best score.";
                     }
-                    if (golfData.randoSettings.GlobalGoals > MaxTier.None)
-                    {
+                    if(golfData.randoSettings.GlobalGoals > MaxTier.None) {
                         hallString += OnAttunedPreview?.Invoke();
                         hallString += OnAscendedPreview?.Invoke();
                         hallString += OnRadiantPreview?.Invoke();
                         hallString += OnMasterPreview?.Invoke();
                         hallString += OnGrandmasterPreview?.Invoke();
                     }
-                    else
-                    {
+                    else {
                         hallString += "<page>Maybe if you get a really good score, you'll get some kind of prize!";
                     }
                     hallString += "<page>Best of luck and happy golfing!";
@@ -1260,8 +1185,7 @@ namespace MilliGolf {
             isActivelyScoring = true;
 
             // Build hook for Completion item give
-            if (ModHooks.GetMod("Randomizer 4") is Mod)
-            {
+            if(ModHooks.GetMod("Randomizer 4") is Mod) {
                 OnScoreUpdated?.Invoke();
             };
         }
@@ -1291,7 +1215,7 @@ namespace MilliGolf {
         public override void OnEnter() {
             string damager;
             GameObject fsmGo = self.FsmVariables.GetFsmGameObject("Damager").Value;
-            if(fsmGo!=null && !string.IsNullOrEmpty(fsmGo.name)) {
+            if(fsmGo != null && !string.IsNullOrEmpty(fsmGo.name)) {
                 damager = fsmGo.name;
             }
             else {
@@ -1348,7 +1272,7 @@ namespace MilliGolf {
         public override void OnEnter() {
             Vector3 position = gameObject.transform.position;
             gameObject.transform.position = new Vector3(position.x, position.y + 0.05f, position.z);
-            speedMax = speedMin = speed;
+            speedMax = speedMin = speed * (PlayerData.instance.GetBool("equippedCharm_15") ? 1.2f : 1);
             switch(MilliGolf.tinkDamager) {
                 case "Dash Slash":
                     switch(angle) {
@@ -1547,7 +1471,7 @@ namespace MilliGolf {
         public override void OnEnter() {
             string scene = GameManager.instance.sceneName;
             if(MilliGolf.isInGolfRoom && scene != "GG_Workshop") {
-                GolfScene gScene = GolfScene.courseDict[scene];
+                GolfScene gScene = MilliGolf.isInUnofficialCourse ? GolfScene.customCourseDict[scene] : GolfScene.courseDict[scene];
                 HeroController.instance.gameObject.transform.position = gScene.knightSpawn;
                 GameObject.Destroy(MilliGolf.millibelleRef.gameObject);
                 MilliGolf.millibelleRef = GameObject.Instantiate(MilliGolf.prefabs["Ruins_Bathhouse"]["Banker Spa NPC"], gScene.millibelleSpawn, Quaternion.identity);

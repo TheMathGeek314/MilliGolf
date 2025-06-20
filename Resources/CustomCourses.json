@@ -1,0 +1,65 @@
+[
+	{
+		"name": "Teacher's Archives",
+		"scene": "Fungus3_archive_02",
+		"startTransition": "top1",
+		"millibelleSpawn": {
+			"x": 49,
+			"y": 185.8
+		},
+		"knightSpawn": {
+			"x": 51,
+			"y": 190.6907,
+		},
+		"doorColor": {
+			"r": 0.61,
+			"g": 1,
+			"b": 0.45
+		},
+		"customHolePosition": {
+			"x": 62,
+			"y": 80.2,
+			"sx": 10,
+			"sy": 0.5
+		},
+		"objectsToDisable": [ "Dreamer Monomon", "Battle Gate Archives", "Battle Gate Archives (1)" ],
+		"flagData": {
+			"filename": "flagSignSE",
+			"x": 55.5,
+			"y": 89.07
+		}
+	},
+	{
+		"name": "Junkpit",
+		"scene": "GG_Waterways",
+		"startTransition": "door1",
+		"holeTarget": "right1",
+		"millibelleSpawn": {
+			"x": 127,
+			"y": 56.8
+		},
+		"knightSpawn": {
+			"x": 139.71,
+			"y": 56.4081
+		},
+		"doorColor": {
+			"r": 1,
+			"g": 1,
+			"b": 1
+		},
+		"secondaryDoorColor": {
+			"r": 1,
+			"g": 1,
+			"b": 1
+		},
+		"objectsToDisable": [ "Respawn Trigger" ],
+		"childrenToDisable": {
+			"Godseeker Waterways": [ "Coffin", "Godseeker Fall", "Godseeker Dazed", "Godseeker Awake" ]
+		},
+		"flagData": {
+			"filename": "flagSignE",
+			"x": 159,
+			"y": 87.8
+		}
+	}
+]

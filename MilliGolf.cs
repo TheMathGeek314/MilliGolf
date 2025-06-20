@@ -54,7 +54,7 @@ namespace MilliGolf {
         }
 
         new public string GetName() => "MilliGolf";
-        public override string GetVersion() => "1.3.0.0a";
+        public override string GetVersion() => "1.3.0.0";
 
         public static LocalGolfSettings golfData { get; set; } = new();
         public void OnLoadLocal(LocalGolfSettings g) => golfData = g;
@@ -597,7 +597,13 @@ namespace MilliGolf {
                         else {
                             tp.name += golfTransitionSuffix;
                             tp.targetScene = "GG_Workshop";
-                            tp.entryPoint = "door" + (tempList.IndexOf(self.sceneName) + (isInUnofficialCourse ? 19 : 1)) + golfTransitionSuffix;
+                            string entry = "door" + (tempList.IndexOf(self.sceneName) + (isInUnofficialCourse ? 19 : 1)) + golfTransitionSuffix;
+                            tp.entryPoint = entry;
+                            PlayMakerFSM tpfsm = tp.gameObject.LocateMyFSM("Door Control");
+                            if(tpfsm != null) {
+                                tpfsm.FsmVariables.GetFsmString("New Scene").Value = "GG_Workshop";
+                                tpfsm.FsmVariables.GetFsmString("Entry Gate").Value = entry;
+                            }
                         }
                     }
                     GameObject[] allGameObjects = GameObject.FindObjectsOfType<GameObject>();

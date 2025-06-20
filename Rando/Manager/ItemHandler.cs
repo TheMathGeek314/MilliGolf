@@ -24,7 +24,7 @@ namespace MilliGolf.Rando.Manager
                 Finder.DefineCustomLocation(new CourseCompletionLocation(name, scene, f, 0.6f));
                 f += 0.3f;
             }
-            Finder.DefineCustomItem(new GolfItem("Goal_Tier", "_", "Milligolf"));
+            Finder.DefineCustomItem(new GolfItem("Goal_Tier", "_", "MilliGolf"));
             Finder.DefineCustomLocation(new GlobalGoalLocation("Attuned", 0, -0.45f, 0.9f));
             Finder.DefineCustomLocation(new GlobalGoalLocation("Ascended", golfMilestones.Ascended, -0.15f, 0.9f));
             Finder.DefineCustomLocation(new GlobalGoalLocation("Radiant", golfMilestones.Radiant, 0.15f, 0.9f));
@@ -78,12 +78,12 @@ namespace MilliGolf.Rando.Manager
                         };
                     });
 
-                    rb.AddLocationByName($"Milligolf_Course-{name}");
-                    rb.EditLocationRequest($"Milligolf_Course-{name}", info =>
+                    rb.AddLocationByName($"MilliGolf_Course-{name}");
+                    rb.EditLocationRequest($"MilliGolf_Course-{name}", info =>
                     {
                         info.getLocationDef = () => new()
                         {
-                            Name = $"Milligolf_Course-{name}",
+                            Name = $"MilliGolf_Course-{name}",
                             SceneName = SceneNames.Town,
                             FlexibleCount = false,
                             AdditionalProgressionPenalty = false
@@ -95,19 +95,19 @@ namespace MilliGolf.Rando.Manager
             {
                 foreach((string name, string scene) in GolfManager.courseList)
                 {
-                    rb.AddToVanilla(new VanillaDef($"Course_Completion-{name}", $"Milligolf_Course-{name}"));
+                    rb.AddToVanilla(new VanillaDef($"Course_Completion-{name}", $"MilliGolf_Course-{name}"));
                 }
             }
 
             if (GolfManager.GlobalSettings.GlobalGoals > Settings.MaxTier.None)
             {
-                rb.AddItemByName("Milligolf-Goal_Tier", (int)GolfManager.GlobalSettings.GlobalGoals);
-                rb.EditItemRequest("Milligolf-Goal_Tier", info => 
+                rb.AddItemByName("MilliGolf-Goal_Tier", (int)GolfManager.GlobalSettings.GlobalGoals);
+                rb.EditItemRequest("MilliGolf-Goal_Tier", info => 
                 {
                     info.getItemDef = () => new()
                     {
                         MajorItem = false,
-                        Name = "Milligolf-Goal_Tier",
+                        Name = "MilliGolf-Goal_Tier",
                         Pool = "Golf",
                         PriceCap = 500
                     };
@@ -118,12 +118,12 @@ namespace MilliGolf.Rando.Manager
                 {
                     if ((int)GolfManager.GlobalSettings.GlobalGoals >= tier)
                     {
-                        rb.AddLocationByName($"Milligolf_{rank}");
-                        rb.EditLocationRequest($"Milligolf_{rank}", info =>
+                        rb.AddLocationByName($"MilliGolf_{rank}");
+                        rb.EditLocationRequest($"MilliGolf_{rank}", info =>
                         {
                             info.getLocationDef = () => new()
                             {
-                                Name = $"Milligolf_{rank}",
+                                Name = $"MilliGolf_{rank}",
                                 SceneName = SceneNames.Town,
                                 FlexibleCount = false,
                                 AdditionalProgressionPenalty = false

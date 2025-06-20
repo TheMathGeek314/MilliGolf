@@ -46,7 +46,7 @@ namespace MilliGolf.Rando.Settings
             topLevelPanel.ResetNavigation();
             topLevelPanel.SymSetNeighbor(Neighbor.Down, golfPage.backButton);
             topLevelPanel.SymSetNeighbor(Neighbor.Up, golfPage.backButton);
-            pageRootButton = new SmallButton(connectionPage, "Milligolf");
+            pageRootButton = new SmallButton(connectionPage, "MilliGolf");
             pageRootButton.AddHideAndShowEvent(connectionPage, golfPage);
         }
         // Define parameter changes

@@ -13,7 +13,7 @@ namespace MilliGolf.Rando.IC
         public int threshold;
         public GlobalGoalLocation(string rank, int maxHits, float x, float y)
         {
-            name = $"Milligolf_{rank}";
+            name = $"MilliGolf_{rank}";
             threshold = maxHits;
             sceneName = SceneNames.GG_Workshop;
             flingType = FlingType.DirectDeposit;
@@ -23,7 +23,7 @@ namespace MilliGolf.Rando.IC
         private static Tag CompletionTag(float x, float y)
         {
             InteropTag tag = new();
-            tag.Properties["ModSource"] = "Milligolf";
+            tag.Properties["ModSource"] = "MilliGolf";
             tag.Properties["PoolGroup"] = "Golf";
             tag.Properties["PinSprite"] = new GolfSprite("flagSignE");
             tag.Properties["MapLocations"] = new (string, float, float)[] {(SceneNames.Town, x, y)};

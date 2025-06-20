@@ -68,7 +68,7 @@ namespace MilliGolf.Rando.Manager
         private static void AddFileSettings(LogArguments args, System.IO.TextWriter tw)
         {
             // Log settings into the settings file
-            tw.WriteLine("Milligolf Settings:");
+            tw.WriteLine("MilliGolf Settings:");
             using JsonTextWriter jtw = new(tw) { CloseOutput = false };
             RandomizerMod.RandomizerData.JsonUtil._js.Serialize(jtw, GlobalSettings);
             tw.WriteLine();

@@ -19,7 +19,7 @@ namespace MilliGolf.Rando.IC
             {
                 GolfManager.SaveSettings.randoSaveState.courseCompletion.SetVariable(itemScene, true);
             }
-            if (itemType == "Milligolf")
+            if (itemType == "MilliGolf")
             {
                 GolfManager.SaveSettings.randoSaveState.globalGoals += 1;
             }
@@ -41,7 +41,7 @@ namespace MilliGolf.Rando.IC
         private static Tag GolfItemTag()
         {
             InteropTag tag = new();
-            tag.Properties["ModSource"] = "Milligolf";
+            tag.Properties["ModSource"] = "MilliGolf";
             tag.Properties["PoolGroup"] = "Golf";
             tag.Properties["PinSprite"] = new GolfSprite("flagSignE");
             tag.Message = "RandoSupplementalMetadata";

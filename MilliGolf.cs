@@ -788,7 +788,6 @@ namespace MilliGolf {
         }
 
         public static void placeDoor(float x, float y, GolfScene room, bool isCustom) {
-        public static void placeDoor(float x, float y, golfScene room) {
             string transitionName = "door" + (isCustom ? (GolfScene.customCourseList.IndexOf(room.scene) + 19) : (GolfScene.courseList.IndexOf(room.scene) + 1));
             // If the player doesn't have the access, still create a dummy transition point with
             // no collision so that they can enter from the other side

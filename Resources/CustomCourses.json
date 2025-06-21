@@ -22,7 +22,7 @@
 			"sx": 10,
 			"sy": 0.5
 		},
-		"objectsToDisable": [ "Dreamer Monomon", "Battle Gate Archives", "Battle Gate Archives (1)" ],
+		"objectsToDisable": [ "Dreamer Monomon", "Battle Gate Archives", "Battle Gate Archives (1)", "Battle Gate Archives (2)" ],
 		"flagData": {
 			"filename": "flagSignSE",
 			"x": 55.5,

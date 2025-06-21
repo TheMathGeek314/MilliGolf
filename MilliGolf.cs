@@ -23,7 +23,6 @@ namespace MilliGolf {
         public static bool isInGolfRoom = false;
         public static bool isInUnofficialCourse = false;
         public static bool wasInCustomRoom = false;
-        public static bool hasLoggedProgression = false;
         public static bool isStubbornLocked = false;
         public static int ballCam = 0;
         public static string tinkDamager;
@@ -370,7 +369,6 @@ namespace MilliGolf {
 
         private void startGameSetup() {
             addDialogue();
-            hasLoggedProgression = false;
             stubbornLockAreas = new();
             stubbornLockAreas.Add("Hive_03", "CameraLockArea (13)");
             stubbornLockAreas.Add("Deepnest_East_11", "CameraLockArea (1)");
@@ -461,7 +459,7 @@ namespace MilliGolf {
                     // This is the only thing we need to reset; other things
                     // that make you dream warp will overwrite the dream return
                     // scene and door.
-                    MilliGolf.doCustomLoad = false;
+                    doCustomLoad = false;
                 });
                 //set destination
                 canWarpState.InsertAction(new setDreamReturnScene(), 7);

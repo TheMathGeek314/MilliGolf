@@ -455,6 +455,14 @@ namespace MilliGolf {
                 isDreamgatingForbidden noGating = new();
                 noGating.isTrue = FsmEvent.GetFsmEvent("FAIL");
                 canWarpState.InsertAction(noGating, 9);
+                //cancel custom load if warp fails
+                self.GetValidState("Warp Fail").AddCustomAction(() => 
+                {
+                    // This is the only thing we need to reset; other things
+                    // that make you dream warp will overwrite the dream return
+                    // scene and door.
+                    MilliGolf.doCustomLoad = false;
+                });
                 //set destination
                 canWarpState.InsertAction(new setDreamReturnScene(), 7);
                 isGolfingBool isGoBoo = new();
@@ -754,7 +762,7 @@ namespace MilliGolf {
             // no collision so that they can enter from the other side
             // (only relevant for transition rando)
             bool accessRandomized = golfData.randoSettings.Enabled && golfData.randoSettings.CourseAccess;
-            if(accessRandomized && !golfData.randoSaveState.courseAccess.GetVariable<bool>(room.scene)) {
+            if(accessRandomized && !isCustom && !golfData.randoSaveState.courseAccess.GetVariable<bool>(room.scene)) {
                 GameObject dummy = new();
                 dummy.name = $"dummy transition from {room.scene}";
                 dummy.transform.position = new Vector3(x, y, 8.13f);

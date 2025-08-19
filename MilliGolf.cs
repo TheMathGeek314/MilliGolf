@@ -53,7 +53,7 @@ namespace MilliGolf {
         }
 
         new public string GetName() => "MilliGolf";
-        public override string GetVersion() => "1.3.0.0";
+        public override string GetVersion() => "1.3.0.1";
 
         public static LocalGolfSettings golfData { get; set; } = new();
         public void OnLoadLocal(LocalGolfSettings g) => golfData = g;
@@ -97,15 +97,20 @@ namespace MilliGolf {
 
             Assembly assembly = Assembly.GetExecutingAssembly();
             string defaultCourses = assembly.GetManifestResourceNames().Single(str => str.EndsWith("DefaultCourses.json"));
-            Stream defaultCourseStream = assembly.GetManifestResourceStream(defaultCourses);
+            using Stream defaultCourseStream = assembly.GetManifestResourceStream(defaultCourses);
             foreach(GolfJsonScene gScene in new ParseJson(defaultCourseStream).parseCourses()) {
                 gScene.translate().create(false);
             }
             string jsonFileName = Path.GetDirectoryName(assembly.Location) + "/CustomCourses.json";
-            if(File.Exists(jsonFileName)) {
-                foreach(GolfJsonScene gcScene in new ParseJson(jsonFileName).parseCourses()) {
-                    gcScene.translate().create(true);
-                }
+            if(!File.Exists(jsonFileName)) {
+                string customCourses = assembly.GetManifestResourceNames().Single(str => str.EndsWith("CustomCourses.json"));
+                using Stream customCourseStream = assembly.GetManifestResourceStream(customCourses);
+                using FileStream createdFile = File.Create(jsonFileName);
+                customCourseStream.CopyTo(createdFile);
+                customCourseStream.Dispose();//possibly unnecessary
+            }
+            foreach(GolfJsonScene gcScene in new ParseJson(jsonFileName).parseCourses()) {
+                gcScene.translate().create(true);
             }
 
             // Only make a Rando Integration if Randomizer 4 is active.
@@ -555,8 +560,8 @@ namespace MilliGolf {
         }
 
         private void lateSceneChange(On.GameManager.orig_OnNextLevelReady orig, GameManager self) {
-            orig(self);
             isInGolfRoom = false;
+            orig(self);
             isInUnofficialCourse = false;
             ballCam = 0;
             isStubbornLocked = false;
@@ -1136,15 +1141,21 @@ namespace MilliGolf {
         }
 
         public static void disableTransition(GameObject tp) {
-            tp.GetComponent<BoxCollider2D>().isTrigger = false;
-            TransitionPoint actualTP = tp.GetComponent<TransitionPoint>();
-            actualTP.enabled = false;
-            if(!actualTP.isADoor) {
-                tp.layer = LayerMask.NameToLayer("Terrain");
+            if(tp.TryGetComponent<BoxCollider2D>(out BoxCollider2D collider)) {
+                collider.isTrigger = false;
             }
-            else {
-                tp.GetComponent<BoxCollider2D>().enabled = false;
+            if(tp.TryGetComponent<TransitionPoint>(out TransitionPoint actualTP)) {
+                actualTP.enabled = false;
+                if(!actualTP.isADoor) {
+                    tp.layer = LayerMask.NameToLayer("Terrain");
+                }
+                else {
+                    if(tp.TryGetComponent<BoxCollider2D>(out BoxCollider2D box)) {
+                        box.enabled = false;
+                    }
+                }
             }
+            
         }
 
         private int takeHealth(int damage) {

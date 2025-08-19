@@ -352,9 +352,11 @@
     <EmbeddedResource Include="Images\*.png" />
   </ItemGroup>
   <ItemGroup>
+    <None Remove="Resources\CustomCourses.json" />
     <None Remove="Resources\DefaultCourses.json" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Resources\CustomCourses.json" />
     <EmbeddedResource Include="Resources\DefaultCourses.json" />
   </ItemGroup>
 </Project>

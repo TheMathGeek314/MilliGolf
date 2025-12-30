@@ -53,7 +53,7 @@ namespace MilliGolf {
         }
 
         new public string GetName() => "MilliGolf";
-        public override string GetVersion() => "1.3.0.1";
+        public override string GetVersion() => "1.3.0.2";
 
         public static LocalGolfSettings golfData { get; set; } = new();
         public void OnLoadLocal(LocalGolfSettings g) => golfData = g;
@@ -381,7 +381,7 @@ namespace MilliGolf {
 
         private void editFSM(On.PlayMakerFSM.orig_OnEnable orig, PlayMakerFSM self) {
             orig(self);
-            if(self.gameObject.name == "Banker Spa NPC(Clone)(Clone)" && self.gameObject.scene.name != "Ruins_Bathhouse") {
+            if(self.gameObject.name.StartsWith("Banker Spa NPC(Clone)") && self.gameObject.scene.name != "Ruins_Bathhouse") {
                 if(self.FsmName == "Hit Around") {
                     self.GetValidState("Init").RemoveAction(2);
                     self.GetValidState("Withdrawn").RemoveAction(0);
@@ -405,7 +405,7 @@ namespace MilliGolf {
                     self.GetValidState("Get Damager Parameters").InsertAction(new storeTinkDamager(self), 1);
                 }
             }
-            else if(self.gameObject.name == "Quirrel Mantis NPC(Clone)(Clone)" && self.FsmName == "FSM") {
+            else if(self.gameObject.name.StartsWith("Quirrel Mantis NPC(Clone)") && self.FsmName == "FSM") {
                 isGolfingBool golfQuirrel = new();
                 golfQuirrel.isTrue = FsmEvent.GetFsmEvent("ENABLE");
                 self.AddState("Keep");
